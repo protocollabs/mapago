@@ -1,5 +1,5 @@
-TARGET := maparo
-PACKAGE := github.com/protocollabs/maparo
+TARGET := mapago
+PACKAGE := github.com/protocollabs/mapago
 DATE    := $(shell date +%FT%T%z)
 VERSION := $(shell git describe --tags --always --dirty)
 GOBIN   :=$(GOPATH)/bin
@@ -16,7 +16,7 @@ SRC = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	go build -ldflags $(LDFLAGS) -o $(TARGET) cmd/maparo/maparo.go
+	go build -ldflags $(LDFLAGS) -o $(TARGET) cmd/mapago/mapago.go
 
 XYZs = windows:amd64 linux:arm64
 
@@ -34,7 +34,7 @@ release:
 	# 	- @echo "build $(OS) Executable for $(PLATFORM)\n" \
 	# 	@rm -rf $(ARCH) \
 	# 	${MKDIR_P} $(ARCH) \
-	# 	GOOS=$(OS) GOARCH=$(PLATFORM) go build -ldflags $(LDFLAGS) -o $(ARCH)/$(TARGET) cmd/maparo/maparo.go \
+	# 	GOOS=$(OS) GOARCH=$(PLATFORM) go build -ldflags $(LDFLAGS) -o $(ARCH)/$(TARGET) cmd/mapago/mapago.go \
 	# )
 
 	$(eval OS := windows)
@@ -43,7 +43,7 @@ release:
 	@echo "build $(OS) Executable for $(PLATFORM)"
 	@rm -rf $(ARCH)
 	${MKDIR_P} $(ARCH)
-	GOOS=$(OS) GOARCH=$(PLATFORM) go build -ldflags $(LDFLAGS) -o $(ARCH)/$(TARGET).exe cmd/maparo/maparo.go
+	GOOS=$(OS) GOARCH=$(PLATFORM) go build -ldflags $(LDFLAGS) -o $(ARCH)/$(TARGET).exe cmd/mapago/mapago.go
 
 	$(eval OS := linux)
 	$(eval PLATFORM := arm64)
@@ -51,7 +51,7 @@ release:
 	@echo "build $(OS) Executable for $(PLATFORM)"
 	@rm -rf $(ARCH)
 	${MKDIR_P} $(ARCH)
-	GOOS=$(OS) GOARCH=$(PLATFORM) go build -ldflags $(LDFLAGS) -o $(ARCH)/$(TARGET) cmd/maparo/maparo.go
+	GOOS=$(OS) GOARCH=$(PLATFORM) go build -ldflags $(LDFLAGS) -o $(ARCH)/$(TARGET) cmd/mapago/mapago.go
 
 	$(eval OS := linux)
 	$(eval PLATFORM := amd64)
@@ -59,7 +59,7 @@ release:
 	@echo "build $(OS) Executable for $(PLATFORM)"
 	@rm -rf $(ARCH)
 	${MKDIR_P} $(ARCH)
-	GOOS=$(OS) GOARCH=$(PLATFORM) go build -ldflags $(LDFLAGS) -o $(ARCH)/$(TARGET) cmd/maparo/maparo.go
+	GOOS=$(OS) GOARCH=$(PLATFORM) go build -ldflags $(LDFLAGS) -o $(ARCH)/$(TARGET) cmd/mapago/mapago.go
 
 	$(eval OS := darwin)
 	$(eval PLATFORM := amd64)
@@ -67,11 +67,11 @@ release:
 	@echo "build $(OS) Executable for $(PLATFORM)"
 	@rm -rf $(ARCH)
 	${MKDIR_P} $(ARCH)
-	GOOS=$(OS) GOARCH=$(PLATFORM) go build -ldflags $(LDFLAGS) -o $(ARCH)/$(TARGET) cmd/maparo/maparo.go
+	GOOS=$(OS) GOARCH=$(PLATFORM) go build -ldflags $(LDFLAGS) -o $(ARCH)/$(TARGET) cmd/mapago/mapago.go
 
 
 install:
-	go install -ldflags $(LDFLAGS) cmd/maparo/maparo.go
+	go install -ldflags $(LDFLAGS) cmd/mapago/mapago.go
 
 build: $(TARGET)
 	@true

@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/protocollabs/maparo/core"
-	"github.com/protocollabs/maparo/core/log"
-	"github.com/protocollabs/maparo/mods"
+	"github.com/protocollabs/mapago/core"
+	"github.com/protocollabs/mapago/core/log"
+	"github.com/protocollabs/mapago/mods"
 )
 
 type Mod interface {
