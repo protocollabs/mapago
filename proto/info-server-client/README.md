@@ -10,6 +10,9 @@
 - Server assumes he support TCP THroughtput and UDP THroughput module
 - CLient receives info reply and print it out on stdout.
 
+## Design
+
+Das ganze sollte als Go "Klasse" implementiert werden: InfoClient und InfoServer
 
 ## Tests
 
