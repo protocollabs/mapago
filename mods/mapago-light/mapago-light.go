@@ -29,58 +29,8 @@ func main() {
 }
 
 func run_server(port int) {
-	c := make(chan []byte)
-	protos := supported_disco_protos()
-
-	fmt.Println("supported protos: ", protos)
-
-	// listen for incoming discovery messages
-	for _, discoProto := range protos {
-		go listen_info_req(discoProto, port, c)
-	}
-
-	// process incoming discovery messages
-	// (receive via chan, JSON decoding etc.)
-	for i := 0; i < len(protos); i++ {
-		jsonInfoReq := <- c
-		fmt.Println("info req JSON data: ", jsonInfoReq)
-
-		// TODO: JSON parser func processing jsonInfoReq
-
-		// TODO: create_info_reply()
-
-		// TODO: send_info_reply() (as unicast)
-	}
+	fmt.Println("server handler dummy func")
 }
-
-func supported_disco_protos() []string {
-	var discoProtos []string
-	discoProtos = append(discoProtos, "udp4_uc", "udp6_uc")
-	discoProtos = append(discoProtos, "udp4_mc", "udp6_mc")
-	discoProtos = append(discoProtos, "tcp4_uc", "tcp6_uc")
-	// placeholder for possible QUIC support
-
-	return discoProtos
-}
-
-func listen_info_req(discoProto string, port int, c chan<- []byte) {
-	// TODO: udp4_uc handler func (i.e. listen, parse and return val)
-
-	// TODO: udp6_uc handler func (i.e. listen, parse and return val)
-
-	// TODO: udp4_mc handler func (i.e. listen, parse and return val)
-
-	// TODO: udp6_mc handler func (i.e. listen, parse and return val)
-
-	// TODO: tcp4_uc handler func (i.e. listen, parse and return val)
-
-	// TODO: tcp6_uc handler func (i.e. listen, parse and return val)
-
-	// dummy channel "return value"
-	jsonBytes := []byte(discoProto)
-	c <- jsonBytes
-}
-
 
 
 func run_client(port int, addr string, proto string) {
