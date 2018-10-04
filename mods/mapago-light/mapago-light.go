@@ -2,8 +2,27 @@ package main
 
 import "fmt"
 import "flag"
+import "net"
 
 var CTRL_PORT = 64321
+
+// interface
+
+type IfAnswer interface {
+	writeMsg([]byte) error
+}
+
+// classes
+
+type TcpObj struct {
+	connName string
+	connObj *net.TCPConn
+}
+
+type UdpObj struct {
+	connName string
+	connObj *net.UDPConn
+}
 
 func main() {
 	modePtr := flag.String("mode", "server", "server or client")
