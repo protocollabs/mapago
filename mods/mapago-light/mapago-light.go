@@ -3,6 +3,7 @@ package main
 import "fmt"
 import "flag"
 import "net"
+import "reflect"
 
 var CTRL_PORT = 64321
 
@@ -24,6 +25,12 @@ type UdpObj struct {
 	connObj *net.UDPConn
 }
 
+// struct for channel
+type Result struct {
+	json []byte
+	connObj interface{}
+}
+
 
 // Implement interface 
 
@@ -40,7 +47,21 @@ func (udp *UdpObj) writeMsg(msg []byte) error {
 } 
 
 
+// constructors
+func NewTcpObj(ch chan<- Result, name string) *TcpObj {
+	tcp := new(TcpObj)
+	tcp.connName = name
 
+	return tcp
+}
+
+
+func NewUdpObj(ch chan<- Result, name string) *UdpObj {
+	udp := new(UdpObj)
+	udp.connName = name
+		
+	return udp
+}
 
 
 func main() {
@@ -68,6 +89,9 @@ func main() {
 
 func run_server(port int) {
 	fmt.Println("server handler dummy func")
+
+	ch := make(chan Result)
+	fmt.Println("ch is of type: ", reflect.TypeOf(ch))
 }
 
 
