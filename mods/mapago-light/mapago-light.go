@@ -24,6 +24,25 @@ type UdpObj struct {
 	connObj *net.UDPConn
 }
 
+
+// Implement interface 
+
+// connects interface with class TcpObj and implement interface 
+func (tcp *TcpObj) writeMsg(msg []byte) error {
+	_, err := tcp.connObj.Write(msg)
+	return err
+} 
+
+// connects interface with class UdpObj and implement interface 
+func (udp *UdpObj) writeMsg(msg []byte) error {
+	_, err := udp.connObj.Write(msg)
+	return err
+} 
+
+
+
+
+
 func main() {
 	modePtr := flag.String("mode", "server", "server or client")
 	portPtr := flag.Int("port", CTRL_PORT, "port for interacting with control channel")
