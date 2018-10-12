@@ -1,4 +1,4 @@
-package shared_intf
+package shared
 
 type WriterAnswer interface {
 	WriteAnswer([]byte)

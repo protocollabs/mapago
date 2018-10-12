@@ -3,7 +3,7 @@ package main
 import "fmt"
 import "flag"
 import "github.com/monfron/mapago/ctrl/server/tcp"
-import "github.com/monfron/mapago/ctrl/shared/struct"
+import "github.com/monfron/mapago/ctrl/shared"
 
 var CTRL_PORT = 64321
 
@@ -20,7 +20,7 @@ func main() {
 }
 
 func run_server(port int) {
-	ch := make(chan shared_struct.ChResult)
+	ch := make(chan shared.ChResult)
 	fmt.Println(ch)
 
 	tcpObj := tcp_server.NewTcpObj("TcpConn1")

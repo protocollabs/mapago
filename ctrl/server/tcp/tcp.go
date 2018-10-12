@@ -1,8 +1,7 @@
 package tcp_server
 
 import "fmt"
-import "github.com/monfron/mapago/ctrl/shared/struct"
-// use later import "github.com/monfron/mapago/ctrl/shared/intf"
+import "github.com/monfron/mapago/ctrl/shared"
 
 // classes
 
@@ -30,12 +29,12 @@ func NewTcpConnObj() *TcpConnObj {
 
 // methods
 
-func (tcp *TcpObj) Start(ch chan<- shared_struct.ChResult) {
+func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
 	fmt.Println("TcpObj start() called")
 	go tcp.handleTcpConn(ch)
 
 }
 
-func (tcp *TcpObj) handleTcpConn(ch chan<- shared_struct.ChResult) {
+func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult) {
 	fmt.Println("handleTcpConn goroutine called")
 }
