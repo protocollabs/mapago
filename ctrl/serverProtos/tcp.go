@@ -25,12 +25,14 @@ func NewTcpConnObj() *TcpConnObj {
 }
 
 // TODO implement interface from shared code
-// separate interface declaration and implementation?
+func (tcpConn *TcpConnObj) writeAnswer(answer []byte) {
+	fmt.Println(answer)
+}
 
 // methods
 
 func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
-	fmt.Println("TcpObj start() called!!!!!")
+	fmt.Println("TcpObj start() called")
 	go tcp.handleTcpConn(ch)
 
 }
