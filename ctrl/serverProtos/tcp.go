@@ -1,4 +1,4 @@
-package tcp_server
+package serverProtos
 
 import "fmt"
 import "github.com/monfron/mapago/ctrl/shared"
@@ -30,7 +30,7 @@ func NewTcpConnObj() *TcpConnObj {
 // methods
 
 func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
-	fmt.Println("TcpObj start() called")
+	fmt.Println("TcpObj start() called!!!!!")
 	go tcp.handleTcpConn(ch)
 
 }
