@@ -1,6 +1,7 @@
 package serverProtos
 
 import "fmt"
+import "time"
 import "github.com/monfron/mapago/ctrl/shared"
 
 // classes
@@ -25,16 +26,36 @@ func NewTcpConnObj() *TcpConnObj {
 }
 
 // TODO implement interface from shared code
-// separate interface declaration and implementation?
+func (tcpConn *TcpConnObj) WriteAnswer(answer []byte) {
+	fmt.Println(answer)
+}
 
 // methods
 
 func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
-	fmt.Println("TcpObj start() called!!!!!")
+	fmt.Println("TcpObj start() called")
 	go tcp.handleTcpConn(ch)
 
 }
 
 func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult) {
 	fmt.Println("handleTcpConn goroutine called")
+
+	tcpConn := NewTcpConnObj()
+	fmt.Println("tcp conn: ", *tcpConn)
+
+	start := time.Now()
+	for {
+		fmt.Println("send something into channel")
+		chReply := new(shared.ChResult)
+		chReply.DummyJson = "tcpStuffReceived"
+		chReply.ConnObj = tcpConn
+
+		ch <- *chReply
+
+		time.Sleep(1 * time.Millisecond)
+		elapsed := time.Since(start)
+		fmt.Println("Elapsed time sending channel: ", elapsed)
+		start = time.Now()
+	}
 }
