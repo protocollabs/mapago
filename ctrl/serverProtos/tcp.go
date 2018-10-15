@@ -2,15 +2,18 @@ package serverProtos
 
 import "fmt"
 import "time"
+import "net"
 import "github.com/monfron/mapago/ctrl/shared"
 
 // classes
 
 type TcpObj struct {
 	connName string
+	connSrvSock *net.TCPListener
 }
 
 type TcpConnObj struct {
+	connAcceptSock *net.TCPConn
 }
 
 // constructors:
