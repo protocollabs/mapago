@@ -27,18 +27,24 @@ func run_server(port int) {
 	tcpObj := serverProtos.NewTcpObj("TcpConn1")
 	tcpObj.Start(ch)
 
+	udpObj := serverProtos.NewUdpObj("UdpConn1")
+	udpObj.Start(ch)
+
 	start := time.Now()
 	for {
-		fmt.Println("try to receive send something from channel")
+		fmt.Println("MAIN: try to receive something from channel")
+		// This delivers the client REQUEST
+		// Note: We simulate "client sending behavior" within handleTcpConn
+		// The netcode has to remove that and wait for incoming conns
 		result := <- ch
-		fmt.Println("Result: ", result)
+		fmt.Println("\nResult: ", result)
 
-		result.ConnObj.WriteAnswer([]byte("tcpStuffSent"))
+		result.ConnObj.WriteAnswer([]byte("Reply"))
 				
 		time.Sleep(2 * time.Millisecond)
 
 		elapsed := time.Since(start)
-		fmt.Println("Elapsed time recv channel: ", elapsed)
+		fmt.Println("MAIN: Elapsed time recv channel: ", elapsed)
 		start = time.Now()
 	}
 }

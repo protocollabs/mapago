@@ -46,7 +46,7 @@ func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult) {
 
 	start := time.Now()
 	for {
-		fmt.Println("send something into channel")
+		fmt.Println("\nTCP: Sending into channel")
 		chReply := new(shared.ChResult)
 		chReply.DummyJson = "tcpStuffReceived"
 		chReply.ConnObj = tcpConn
@@ -55,7 +55,7 @@ func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult) {
 
 		time.Sleep(1 * time.Millisecond)
 		elapsed := time.Since(start)
-		fmt.Println("Elapsed time sending channel: ", elapsed)
+		fmt.Println("TCP: Elapsed time sending channel: ", elapsed)
 		start = time.Now()
 	}
 }
