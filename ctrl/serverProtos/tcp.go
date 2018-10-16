@@ -38,7 +38,11 @@ func NewTcpConnObj(tcpAcceptSock *net.TCPConn) *TcpConnObj {
 
 // TODO implement interface from shared code
 func (tcpConn *TcpConnObj) WriteAnswer(answer []byte) {
-	fmt.Println(answer)
+	_, err := tcpConn.connAcceptSock.Write(answer)
+	if err != nil {
+		fmt.Printf("Cannot send/write %s\n", err)
+		os.Exit(1)
+	}
 }
 
 // methods
