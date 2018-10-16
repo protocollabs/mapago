@@ -3,6 +3,6 @@ package shared
 // channel result
 
 type ChResult struct {
-	DummyJson string
+	Json []byte
 	ConnObj WriterAnswer
 }
