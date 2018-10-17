@@ -2,7 +2,7 @@ package main
 
 import "fmt"
 import "flag"
-import "time"
+// import "time"
 import "github.com/monfron/mapago/ctrl/serverProtos"
 import "github.com/monfron/mapago/ctrl/shared"
 
@@ -31,10 +31,12 @@ func run_server(port int, callSize int) {
 	tcpObj := serverProtos.NewTcpObj("TcpConn1", port, callSize)
 	tcpObj.Start(ch)
 
+	/*
 	udpObj := serverProtos.NewUdpObj("UdpConn1")
 	udpObj.Start(ch)
+	*/
 
-	start := time.Now()
+	//	changed start := time.Now()
 	for {
 		fmt.Println("MAIN: try to receive something from channel")
 		// This delivers the client REQUEST
@@ -43,12 +45,13 @@ func run_server(port int, callSize int) {
 		result := <- ch
 		fmt.Println("\nResult: ", result)
 
-		result.ConnObj.WriteAnswer([]byte("Reply"))
+		// result.ConnObj.WriteAnswer([]byte("Reply"))
 				
-		time.Sleep(2 * time.Millisecond)
+		// changed time.Sleep(2 * time.Millisecond)
 
-		elapsed := time.Since(start)
+		/* changed elapsed := time.Since(start)
 		fmt.Println("MAIN: Elapsed time recv channel: ", elapsed)
 		start = time.Now()
+		*/
 	}
 }

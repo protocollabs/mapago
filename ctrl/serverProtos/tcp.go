@@ -4,7 +4,7 @@ import "fmt"
 import "net"
 import "strconv"
 import "os"
- import "github.com/monfron/mapago/ctrl/shared"
+import "github.com/monfron/mapago/ctrl/shared"
 
 // classes
 
@@ -64,7 +64,7 @@ func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
 		fmt.Printf("Cannot Listen \"%s\"", err)
 		os.Exit(1)
 	}
-	defer tcpListener.Close()
+	// defer tcpListener.Close()
 
 	tcp.connSrvSock = tcpListener
 
@@ -74,7 +74,8 @@ func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
 		fmt.Printf("Cannot accept: %s\n", err)
 		os.Exit(1)
 	}
-	defer tcpConn.Close()
+
+	// defer tcpConn.Close()
 
 	go tcp.handleTcpConn(ch, tcpConn)
 }
@@ -89,7 +90,7 @@ func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult, tcpAccepted *net.TCP
 		n, err := tcpConn.connAcceptSock.Read(buf)
 
 		if err != nil {
-			fmt.Printf("Cannot read msg: %s\n", err)
+			fmt.Printf("Cannot read!!!! msg: %s\n", err)
 			os.Exit(1)
 		}
 		// debug output, will be removed
@@ -102,4 +103,8 @@ func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult, tcpAccepted *net.TCP
 		fmt.Printf("Sending into channel\n")
 		ch <- *chRequest
 	}
+
+	defer tcp.connSrvSock.Close()
+	defer tcpConn.connAcceptSock.Close()
+
 }

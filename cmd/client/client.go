@@ -2,8 +2,8 @@ package main
 
 import "fmt"
 import "flag"
-// import "github.com/monfron/mapago/ctrl/clientProtos"
-// import "github.com/monfron/mapago/ctrl/shared"
+import "github.com/monfron/mapago/ctrl/clientProtos"
+import "github.com/monfron/mapago/ctrl/shared"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
@@ -24,24 +24,35 @@ func main() {
 	fmt.Println("Call-Size: ", *callSizePtr)
 
 	if *ctrlProtoPtr == "tcp" {
-		run_tcp_client()
+		run_tcp_client(*ctrlAddrPtr, *portPtr, *callSizePtr)
 	} else if *ctrlProtoPtr == "udp" {
-		run_udp_client()
+		run_udp_client(*ctrlAddrPtr, *portPtr, *callSizePtr)
 	} else if *ctrlProtoPtr == "udp_mcast" {
-		run_udp_mcast_client()
+		run_udp_mcast_client(*ctrlAddrPtr, *portPtr, *callSizePtr)
 	} else {
-		panic("tcp or udp as ctrl-proto")
+		panic("tcp, udp or udp_mcast as ctrl-proto")
 	}
 }
 
-func run_tcp_client() {
-	fmt.Println("tcp module called")
+func run_tcp_client(addr string, port int, callSize int) {
+	// we need a channel here aswell. use case:
+	// we receive a server response. using the server response
+	// we can determine what next to do. i.e. info rep => do msmt start req etc.
+	ch := make(chan shared.ChResult)
+	fmt.Println(ch)
+
+	tcpObj := clientProtos.NewTcpObj("TcpConn1", addr, port, callSize)
+	tcpObj.Start(ch)
+	fmt.Println("tcpObj is: ", tcpObj)
+
+	// TODO: wait for answer from server and then decide next communication steps
+	// not necessary for toy server
 }
 
-func run_udp_client() {
-	fmt.Println("udp module called")
+func run_udp_client(addr string, port int, callSize int) {
+	fmt.Println("DUMMY udp module called")
 }
 
-func run_udp_mcast_client() {
-	fmt.Println("udp mcast module called")
+func run_udp_mcast_client(addr string, port int, callSize int) {
+	fmt.Println("DUMMY udp mcast module called")
 }
