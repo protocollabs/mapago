@@ -36,7 +36,12 @@ func run_server(port int, callSize int) {
 
 	for {
 		result := <- ch
-		fmt.Println("\nrun_server() result got: ", result)
+
+		dataObj := shared.NewDataObj()
+		fmt.Println("dataObj is: ", dataObj)
+		dataObj.TransformJson(result.Json)
+		fmt.Println("Val of current data obj: ", dataObj)
+
 		// cannot be utilized by toy client atm: result.ConnObj.WriteAnswer([]byte("Reply"))
 	}
 }

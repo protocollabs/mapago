@@ -62,6 +62,7 @@ func (tcp *TcpObj) handleTcpConn(conn *net.TCPConn, wg sync.WaitGroup) {
 	defer wg.Done()
 
 	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
+	buf = []byte(`{"Type":02,"Id":"0x1337","MsmtId":1337,"Seq":00}`)
 
 	tcpConn := NewTcpConnObj(conn)
 	defer tcpConn.connSock.Close()
