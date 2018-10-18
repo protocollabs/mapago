@@ -30,13 +30,10 @@ func NewTcpObj(name string, port int, callSize int) *TcpObj {
 
 func NewTcpConnObj(tcpAcceptSock *net.TCPConn) *TcpConnObj {
 	tcpConnObj := new(TcpConnObj)
-	// when TcpConnObj is created,
-	// initialise it with accepted Socket
 	tcpConnObj.connAcceptSock = tcpAcceptSock
 	return tcpConnObj
 }
 
-// TODO implement interface from shared code
 func (tcpConn *TcpConnObj) WriteAnswer(answer []byte) {
 	_, err := tcpConn.connAcceptSock.Write(answer)
 	if err != nil {
@@ -50,7 +47,6 @@ func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
 	fmt.Println("TcpObj start() called")
 
 	listenAddr := "[::]:" + strconv.Itoa(tcp.connPort)
-	// fmt.Println("Listening on: ", listenAddr)
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp", listenAddr)
 	if err != nil {
@@ -58,17 +54,15 @@ func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
 		os.Exit(1)
 	}
 
-	// fmt.Println("tcpAddr is: ", tcpAddr)
 	tcpListener, err := net.ListenTCP("tcp", tcpAddr)
 	if err != nil {
 		fmt.Printf("Cannot Listen \"%s\"", err)
 		os.Exit(1)
 	}
-	// defer tcpListener.Close()
 
 	tcp.connSrvSock = tcpListener
 
-	// until here: block until accepted conn established
+	// note: block until accepted conn established
 	tcpConn, err := tcpListener.AcceptTCP()
 	if err != nil {
 		fmt.Printf("Cannot accept: %s\n", err)
@@ -88,14 +82,12 @@ func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult, tcpAccepted *net.TCP
 	defer tcpConn.connAcceptSock.Close()
 
 	for {
-		n, err := tcpConn.connAcceptSock.Read(buf)
+		_, err := tcpConn.connAcceptSock.Read(buf)
 
 		if err != nil {
 			fmt.Printf("Cannot read!!!! msg: %s\n", err)
 			os.Exit(1)
 		}
-		// debug output, will be removed
-		fmt.Printf("read %i", n, " bytes ")
 
 		chRequest := new(shared.ChResult)
 		chRequest.ConnObj = tcpConn

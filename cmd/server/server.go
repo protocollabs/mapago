@@ -2,7 +2,6 @@ package main
 
 import "fmt"
 import "flag"
-// import "time"
 import "github.com/monfron/mapago/ctrl/serverProtos"
 import "github.com/monfron/mapago/ctrl/shared"
 
@@ -31,27 +30,13 @@ func run_server(port int, callSize int) {
 	tcpObj := serverProtos.NewTcpObj("TcpConn1", port, callSize)
 	tcpObj.Start(ch)
 
-	/*
+	// just for demonstration purpose: no netcode atm
 	udpObj := serverProtos.NewUdpObj("UdpConn1")
 	udpObj.Start(ch)
-	*/
 
-	//	changed start := time.Now()
 	for {
-		fmt.Println("MAIN: try to receive something from channel")
-		// This delivers the client REQUEST
-		// Note: We simulate "client sending behavior" within handleTcpConn
-		// The netcode has to remove that and wait for incoming conns
 		result := <- ch
-		fmt.Println("\nResult: ", result)
-
-		// result.ConnObj.WriteAnswer([]byte("Reply"))
-				
-		// changed time.Sleep(2 * time.Millisecond)
-
-		/* changed elapsed := time.Since(start)
-		fmt.Println("MAIN: Elapsed time recv channel: ", elapsed)
-		start = time.Now()
-		*/
+		fmt.Println("\nrun_server() result got: ", result)
+		// cannot be utilized by toy client atm: result.ConnObj.WriteAnswer([]byte("Reply"))
 	}
 }
