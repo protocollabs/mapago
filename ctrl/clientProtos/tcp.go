@@ -4,8 +4,7 @@ import "fmt"
 import "net"
 import "strconv"
 import "os"
-import "reflect"
-import "github.com/monfron/mapago/ctrl/shared"
+import "sync"
 
 // classes
 
@@ -32,18 +31,15 @@ func NewTcpObj(name string, addr string, port int, callSize int) *TcpObj {
 
 func NewTcpConnObj(tcpSock *net.TCPConn) *TcpConnObj {
 	tcpConnObj := new(TcpConnObj)
-	// when TcpConnObj is created,
-	// initialize it with accepted Socket
 	tcpConnObj.connSock = tcpSock
 	return tcpConnObj
 }
 
-func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
+func (tcp *TcpObj) Start() {
 	fmt.Println("TcpObj start() called")
+	var wg sync.WaitGroup
 
 	rAddr := tcp.connAddr + ":" + strconv.Itoa(tcp.connPort)
-	fmt.Println("FullAddr is: ", rAddr)
-
 	rTcpAddr, err := net.ResolveTCPAddr("tcp", rAddr)
 	if err != nil {
 		fmt.Printf("Cannot parse \"%s\": %s\n", rAddr, err)
@@ -56,29 +52,26 @@ func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
 		os.Exit(1)
 	}
 
-	//go tcp.handleTcpConn(ch, tcpConn)
-	tcp.handleTcpConn(ch, tcpConn)
+	wg.Add(1)
+	go tcp.handleTcpConn(tcpConn, wg)
+	wg.Wait()
 }
 
-func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult, conn *net.TCPConn) {
+func (tcp *TcpObj) handleTcpConn(conn *net.TCPConn, wg sync.WaitGroup) {
 	fmt.Println("\n\nGoroutine here!!!!")
+	defer wg.Done()
 
 	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
 
 	tcpConn := NewTcpConnObj(conn)
-	fmt.Println("tcpConn is of type: ", reflect.TypeOf(tcpConn))
+	defer tcpConn.connSock.Close()
 
 	for {
-		_, err := tcpConn.connSock.Write([]byte("testest!!!"))
+		_, err := tcpConn.connSock.Write(buf)
 		if err != nil {
 			fmt.Printf("Cannot send!!! %s\n", err)
 			os.Exit(1)
 		}
-		fmt.Println("sending!!!")
 	}
-
-	defer tcpConn.connSock.Close()
-	fmt.Println("buf is of type: ", reflect.TypeOf(buf))
-	fmt.Println("tcpConn is: ", tcpConn)
 }
 

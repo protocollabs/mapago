@@ -3,7 +3,6 @@ package main
 import "fmt"
 import "flag"
 import "github.com/monfron/mapago/ctrl/clientProtos"
-import "github.com/monfron/mapago/ctrl/shared"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
@@ -35,15 +34,11 @@ func main() {
 }
 
 func run_tcp_client(addr string, port int, callSize int) {
-	// we need a channel here aswell. use case:
-	// we receive a server response. using the server response
+	// TODO: we need a channel here aswell in the future
+	// use case: we receive a server response. using the server response
 	// we can determine what next to do. i.e. info rep => do msmt start req etc.
-	ch := make(chan shared.ChResult)
-	fmt.Println(ch)
-
 	tcpObj := clientProtos.NewTcpObj("TcpConn1", addr, port, callSize)
-	tcpObj.Start(ch)
-	fmt.Println("tcpObj is: ", tcpObj)
+	tcpObj.Start()
 
 	// TODO: wait for answer from server and then decide next communication steps
 	// not necessary for toy server

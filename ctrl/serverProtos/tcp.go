@@ -75,8 +75,6 @@ func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
 		os.Exit(1)
 	}
 
-	// defer tcpConn.Close()
-
 	go tcp.handleTcpConn(ch, tcpConn)
 }
 
@@ -85,6 +83,9 @@ func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult, tcpAccepted *net.TCP
 
 	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
 	tcpConn := NewTcpConnObj(tcpAccepted)
+
+	defer tcp.connSrvSock.Close()
+	defer tcpConn.connAcceptSock.Close()
 
 	for {
 		n, err := tcpConn.connAcceptSock.Read(buf)
@@ -103,8 +104,4 @@ func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult, tcpAccepted *net.TCP
 		fmt.Printf("Sending into channel\n")
 		ch <- *chRequest
 	}
-
-	defer tcp.connSrvSock.Close()
-	defer tcpConn.connAcceptSock.Close()
-
 }
