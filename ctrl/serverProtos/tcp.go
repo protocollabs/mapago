@@ -82,12 +82,14 @@ func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult, tcpAccepted *net.TCP
 	defer tcpConn.connAcceptSock.Close()
 
 	for {
-		_, err := tcpConn.connAcceptSock.Read(buf)
+		bytes , err := tcpConn.connAcceptSock.Read(buf)
 
 		if err != nil {
 			fmt.Printf("Cannot read!!!! msg: %s\n", err)
 			os.Exit(1)
 		}
+
+		fmt.Println("Server read num bytes: ", bytes)
 
 		chRequest := new(shared.ChResult)
 		chRequest.ConnObj = tcpConn

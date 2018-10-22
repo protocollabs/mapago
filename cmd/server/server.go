@@ -30,18 +30,22 @@ func run_server(port int, callSize int) {
 	tcpObj := serverProtos.NewTcpObj("TcpConn1", port, callSize)
 	tcpObj.Start(ch)
 
-	// just for demonstration purpose: no netcode atm
+	/* WIP: disabled for reduced complexity
 	udpObj := serverProtos.NewUdpObj("UdpConn1")
 	udpObj.Start(ch)
+	*/
 
 	for {
 		result := <- ch
+		fmt.Println("Server received from client: ", result)
 
+		/* WIP: disabled for reduced complexity
 		dataObj := shared.NewDataObj()
 		fmt.Println("dataObj is: ", dataObj)
 		dataObj.TransformJson(result.Json)
 		fmt.Println("Val of current data obj: ", dataObj)
+		*/
 
-		// cannot be utilized by toy client atm: result.ConnObj.WriteAnswer([]byte("Reply"))
+		result.ConnObj.WriteAnswer([]byte("ServerReply"))
 	}
 }

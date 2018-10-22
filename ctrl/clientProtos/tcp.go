@@ -4,7 +4,6 @@ import "fmt"
 import "net"
 import "strconv"
 import "os"
-import "sync"
 
 // classes
 
@@ -37,7 +36,7 @@ func NewTcpConnObj(tcpSock *net.TCPConn) *TcpConnObj {
 
 func (tcp *TcpObj) Start() {
 	fmt.Println("TcpObj start() called")
-	var wg sync.WaitGroup
+	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
 
 	rAddr := tcp.connAddr + ":" + strconv.Itoa(tcp.connPort)
 	rTcpAddr, err := net.ResolveTCPAddr("tcp", rAddr)
@@ -52,27 +51,23 @@ func (tcp *TcpObj) Start() {
 		os.Exit(1)
 	}
 
-	wg.Add(1)
-	go tcp.handleTcpConn(tcpConn, wg)
-	wg.Wait()
-}
-
-func (tcp *TcpObj) handleTcpConn(conn *net.TCPConn, wg sync.WaitGroup) {
-	fmt.Println("\n\nGoroutine here!!!!")
-	defer wg.Done()
-
-	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
-	buf = []byte(`{"Type":02,"Id":"0x1337","MsmtId":1337,"Seq":00}`)
-
-	tcpConn := NewTcpConnObj(conn)
-	defer tcpConn.connSock.Close()
+	tcpConnObj := NewTcpConnObj(tcpConn)
+	defer tcpConnObj.connSock.Close()
 
 	for {
-		_, err := tcpConn.connSock.Write(buf)
+		_, err := tcpConnObj.connSock.Write([]byte("ClientRequest"))
 		if err != nil {
 			fmt.Printf("Cannot send!!! %s\n", err)
 			os.Exit(1)
 		}
+
+		bytes, err := tcpConnObj.connSock.Read(buf)
+		if err != nil {
+			fmt.Printf("Cannot read!!!! msg: %s\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Client read num bytes: ", bytes)
+		fmt.Println("Client received from server: ", buf)
 	}
 }
-
