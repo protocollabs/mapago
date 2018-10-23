@@ -23,17 +23,17 @@ func main() {
 	fmt.Println("Call-Size: ", *callSizePtr)
 
 	if *ctrlProtoPtr == "tcp" {
-		run_tcp_client(*ctrlAddrPtr, *portPtr, *callSizePtr)
+		runTcpClient(*ctrlAddrPtr, *portPtr, *callSizePtr)
 	} else if *ctrlProtoPtr == "udp" {
-		run_udp_client(*ctrlAddrPtr, *portPtr, *callSizePtr)
+		runUdpClient(*ctrlAddrPtr, *portPtr, *callSizePtr)
 	} else if *ctrlProtoPtr == "udp_mcast" {
-		run_udp_mcast_client(*ctrlAddrPtr, *portPtr, *callSizePtr)
+		runUdpMcastClient(*ctrlAddrPtr, *portPtr, *callSizePtr)
 	} else {
 		panic("tcp, udp or udp_mcast as ctrl-proto")
 	}
 }
 
-func run_tcp_client(addr string, port int, callSize int) {
+func runTcpClient(addr string, port int, callSize int) {
 	// TODO: we need a channel here aswell in the future
 	// use case: we receive a server response. using the server response
 	// we can determine what next to do. i.e. info rep => do msmt start req etc.
@@ -44,10 +44,10 @@ func run_tcp_client(addr string, port int, callSize int) {
 	// not necessary for toy server
 }
 
-func run_udp_client(addr string, port int, callSize int) {
+func runUdpClient(addr string, port int, callSize int) {
 	fmt.Println("DUMMY udp module called")
 }
 
-func run_udp_mcast_client(addr string, port int, callSize int) {
+func runUdpMcastClient(addr string, port int, callSize int) {
 	fmt.Println("DUMMY udp mcast module called")
 }

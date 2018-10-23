@@ -20,10 +20,10 @@ func main() {
 	fmt.Println("Port:", *portPtr)
 	fmt.Println("Call-Size:", *callSizePtr)
 
-	run_server(*portPtr, *callSizePtr)
+	runServer(*portPtr, *callSizePtr)
 }
 
-func run_server(port int, callSize int) {
+func runServer(port int, callSize int) {
 	ch := make(chan shared.ChResult)
 	fmt.Println(ch)
 
