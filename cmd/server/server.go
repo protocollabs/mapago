@@ -41,3 +41,11 @@ func runServer(port int, callSize int) {
 		result.ConnObj.WriteAnswer([]byte("ServerReply"))
 	}
 }
+
+func convJsonToDataStruct(jsonData []byte) *DataObj {
+	fmt.Println("convert json to data struct (i.e. process incoming msg")
+}
+
+func convDataStructToJson(data *DataObj) []byte {
+	fmt.Println("convert data struct to json (i.e. prepare outgoing msg")
+}
