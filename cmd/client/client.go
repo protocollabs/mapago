@@ -3,6 +3,7 @@ package main
 import "fmt"
 import "flag"
 import "github.com/monfron/mapago/ctrl/clientProtos"
+import "github.com/monfron/mapago/ctrl/shared"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
@@ -52,10 +53,14 @@ func runUdpMcastClient(addr string, port int, callSize int) {
 	fmt.Println("DUMMY udp mcast module called")
 }
 
-func convJsonToDataStruct(jsonData []byte) *DataObj {
+func convJsonToDataStruct(jsonData []byte) *shared.DataObj {
 	fmt.Println("convert json to data struct (i.e. process incoming msg")
+	dataObj := new(shared.DataObj)
+	return dataObj
+
 }
 
-func convDataStructToJson(data *DataObj) []byte {
+func convDataStructToJson(data *shared.DataObj) []byte {
 	fmt.Println("convert data struct to json (i.e. prepare outgoing msg")
+	return []byte("ShutUpGo")
 }

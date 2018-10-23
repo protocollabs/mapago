@@ -9,18 +9,25 @@ type ChResult struct {
 
 type DataObj struct {
 	// type is currently 1 byte in type field: 0x02 etc.
+	// not part of the actual json blob...so could be string too
 	Type uint64
 	Id string
-	MsmtId uint64
 	Seq uint64
-	/* not mandatory atm:
-	Timestamp time.Date
+	// TODO: check if time.Data can be handled
+	Ts string
 	Secret string
-	SeqRp uint64
-	Modules []string => could be also [][]string
-	Os string
+	Seq_rp uint64
 	Arch string
-	Measurement [][]string
-	ControlProtocol [][]string
+	Os string
+	Info string
+	Status string
+	Measurement_delay uint32
+	Measurement_time_max uint32
+	Padding string
+	/*
+	TODO: how to handle
+	Modules []string
+	Measurement
+	ControlProtocol
 	*/
 }

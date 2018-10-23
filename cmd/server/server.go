@@ -35,17 +35,33 @@ func runServer(port int, callSize int) {
 	udpObj.Start(ch)
 	*/
 
+	/* WIP removed during JSON test
 	for {
 		result := <- ch
 		fmt.Println("Server received from client: ", result)
+
 		result.ConnObj.WriteAnswer([]byte("ServerReply"))
 	}
+	*/
 }
 
-func convJsonToDataStruct(jsonData []byte) *DataObj {
+func convJsonToDataStruct(jsonData []byte) *shared.DataObj {
 	fmt.Println("convert json to data struct (i.e. process incoming msg")
+	dataObj := new(shared.DataObj)
+	return dataObj
 }
 
-func convDataStructToJson(data *DataObj) []byte {
+func convDataStructToJson(data *shared.DataObj) []byte {
 	fmt.Println("convert data struct to json (i.e. prepare outgoing msg")
+	return []byte("ShutUpGo")
+}
+
+
+
+
+// this is a shrinked version of convDataStructToJson
+// use it to play around...
+// note "Json" is not precise: includes type field aswell
+func constructDummyJson() []byte {
+	return []byte("ShutUpGo")
 }
