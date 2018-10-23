@@ -1,61 +1,101 @@
 package serverProtos
 
 import "fmt"
-import "time"
+import "net"
+import "strconv"
+import "os"
 import "github.com/monfron/mapago/ctrl/shared"
 
 // classes
 
 type TcpObj struct {
 	connName string
+	connSrvSock *net.TCPListener
+	connPort int
+	connCallSize int
 }
 
 type TcpConnObj struct {
+	connAcceptSock *net.TCPConn
 }
 
 // constructors:
-func NewTcpObj(name string) *TcpObj {
+func NewTcpObj(name string, port int, callSize int) *TcpObj {
 	tcpObj := new(TcpObj)
 	tcpObj.connName = name
+	tcpObj.connPort = port
+	tcpObj.connCallSize = callSize
 	return tcpObj
 }
 
-func NewTcpConnObj() *TcpConnObj {
+func NewTcpConnObj(tcpAcceptSock *net.TCPConn) *TcpConnObj {
 	tcpConnObj := new(TcpConnObj)
+	tcpConnObj.connAcceptSock = tcpAcceptSock
 	return tcpConnObj
 }
 
-// TODO implement interface from shared code
 func (tcpConn *TcpConnObj) WriteAnswer(answer []byte) {
-	fmt.Println(answer)
+	_, err := tcpConn.connAcceptSock.Write(answer)
+	if err != nil {
+		fmt.Printf("Cannot send/write %s\n", err)
+		os.Exit(1)
+	}
 }
 
 // methods
-
 func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
 	fmt.Println("TcpObj start() called")
-	go tcp.handleTcpConn(ch)
 
+	listenAddr := "[::]:" + strconv.Itoa(tcp.connPort)
+
+	tcpAddr, err := net.ResolveTCPAddr("tcp", listenAddr)
+	if err != nil {
+		fmt.Printf("Cannot parse \"%s\": %s\n", listenAddr, err)
+		os.Exit(1)
+	}
+
+	tcpListener, err := net.ListenTCP("tcp", tcpAddr)
+	if err != nil {
+		fmt.Printf("Cannot Listen \"%s\"", err)
+		os.Exit(1)
+	}
+
+	tcp.connSrvSock = tcpListener
+
+	// note: block until accepted conn established
+	tcpConn, err := tcpListener.AcceptTCP()
+	if err != nil {
+		fmt.Printf("Cannot accept: %s\n", err)
+		os.Exit(1)
+	}
+
+	go tcp.handleTcpConn(ch, tcpConn)
 }
 
-func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult) {
+func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult, tcpAccepted *net.TCPConn) {
 	fmt.Println("handleTcpConn goroutine called")
 
-	tcpConn := NewTcpConnObj()
-	fmt.Println("tcp conn: ", *tcpConn)
+	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
+	tcpConn := NewTcpConnObj(tcpAccepted)
 
-	start := time.Now()
+	defer tcp.connSrvSock.Close()
+	defer tcpConn.connAcceptSock.Close()
+
 	for {
-		fmt.Println("\nTCP: Sending into channel")
-		chReply := new(shared.ChResult)
-		chReply.DummyJson = "tcpStuffReceived"
-		chReply.ConnObj = tcpConn
+		bytes , err := tcpConn.connAcceptSock.Read(buf)
 
-		ch <- *chReply
+		if err != nil {
+			fmt.Printf("Cannot read!!!! msg: %s\n", err)
+			os.Exit(1)
+		}
 
-		time.Sleep(1 * time.Millisecond)
-		elapsed := time.Since(start)
-		fmt.Println("TCP: Elapsed time sending channel: ", elapsed)
-		start = time.Now()
+		fmt.Println("Server read num bytes: ", bytes)
+
+		chRequest := new(shared.ChResult)
+		chRequest.ConnObj = tcpConn
+		chRequest.Json = buf
+
+		fmt.Printf("Sending into channel\n")
+		ch <- *chRequest
 	}
 }

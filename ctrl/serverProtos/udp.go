@@ -47,7 +47,7 @@ func (udp *UdpObj) handleUdpConn(ch chan<- shared.ChResult) {
 	for {
 		fmt.Println("\nUDP: Sending into channel")
 		chReply := new(shared.ChResult)
-		chReply.DummyJson = "UdpStuffReceived"
+		chReply.Json = []byte("UdpStuffReceived")
 		chReply.ConnObj = udpConn
 
 		ch <- *chReply
