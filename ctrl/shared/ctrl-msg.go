@@ -1,8 +1,5 @@
 package shared
 
-import "encoding/json"
-import "fmt"
-
 // channel result
 
 type ChResult struct {
@@ -26,16 +23,4 @@ type DataObj struct {
 	Measurement [][]string
 	ControlProtocol [][]string
 	*/
-}
-
-func NewDataObj() *DataObj {
-	dataObj := new(DataObj)
-	return dataObj
-}
-
-func (data *DataObj) TransformJson(jsonData []byte) {
-	err := json.Unmarshal(jsonData, data)
-	if err != nil {
-		fmt.Printf("Cannot parse JSON %s\n", err)
-	}
 }

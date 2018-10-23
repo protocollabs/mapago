@@ -38,14 +38,6 @@ func run_server(port int, callSize int) {
 	for {
 		result := <- ch
 		fmt.Println("Server received from client: ", result)
-
-		/* WIP: disabled for reduced complexity
-		dataObj := shared.NewDataObj()
-		fmt.Println("dataObj is: ", dataObj)
-		dataObj.TransformJson(result.Json)
-		fmt.Println("Val of current data obj: ", dataObj)
-		*/
-
 		result.ConnObj.WriteAnswer([]byte("ServerReply"))
 	}
 }
