@@ -40,12 +40,17 @@ func runServer(port int, callSize int) {
 	udpObj.Start(ch)
 	*/
 
-	constructDummyJson()
+	dummyJson := constructDummyJson()
+	dataObj := convJsonToDataStruct(dummyJson)
+	fmt.Println("\nconstructed dataObj out of JSON is: ", *dataObj)
 
 	/* WIP removed during JSON test
 	for {
 		result := <- ch
 		fmt.Println("Server received from client: ", result)
+
+		// TODO: here will go the conJsonToDataStruct in the future
+		dataObj := conJsonToDataStruct(result.Json)
 
 		result.ConnObj.WriteAnswer([]byte("ServerReply"))
 	}
@@ -53,8 +58,25 @@ func runServer(port int, callSize int) {
 }
 
 func convJsonToDataStruct(jsonData []byte) *shared.DataObj {
-	fmt.Println("convert json to data struct (i.e. process incoming msg")
+	fmt.Printf("\nProcessing the following data: % x", jsonData)
+
 	dataObj := new(shared.DataObj)
+
+	// NOTE: unmarshal should only
+	// populate matched fields of json blob and struct
+	// still: "Type" of the struct is overwritten
+	// even though it is not part of the unmarshaled JSON blob
+	jsonB :=  jsonData[2:]
+	err := json.Unmarshal(jsonB, dataObj)
+	if err != nil {
+		fmt.Printf("Cannot Unmarshal %s\n", err)
+		os.Exit(1)
+	}
+
+	// extract type field and add to struct
+	typeField := jsonData[0:2]
+	dataObj.Type = uint64(binary.BigEndian.Uint16(typeField))
+
 	return dataObj
 }
 
@@ -93,6 +115,6 @@ func constructDummyJson() []byte {
 
 	// add json field to result
 	resB = append(resB, jsonB...)
-	fmt.Printf("\nbinary content of resB: % x", resB)
+
 	return resB
 }
