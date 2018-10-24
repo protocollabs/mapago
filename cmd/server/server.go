@@ -42,29 +42,17 @@ func runServer(port int, callSize int) {
 
 	dummyJson := constructDummyJson()
 	dataObj := convJsonToDataStruct(dummyJson)
-	fmt.Println("\nconstructed dataObj out of JSON is: ", *dataObj)
-
 	switch dataObj.Type {
 	case shared.INFO_REQUEST:
 		fmt.Println("INFO_REQUEST")
-	case shared.INFO_REPLY:
-		fmt.Println("INFO_REPLY")
 	case shared.MEASUREMENT_START_REQUESTS:
 		fmt.Println("MEASUREMENT_START_REQUESTS")
-	case shared.MEASUREMENT_START_REPLY:
-		fmt.Println("MEASUREMENT_START_REPLY")
 	case shared.MEASUREMENT_STOP_REQUEST:
 		fmt.Println("MEASUREMENT_STOP_REQUEST")
-	case shared.MEASUREMENT_STOP_REPLY:
-		fmt.Println("MEASUREMENT_STOP_REPLY")
 	case shared.MEASUREMENT_INFO_REQUEST:
 		fmt.Println("MEASUREMENT_INFO_REQUEST")
-	case shared.MEASUREMENT_INFO_REPLY:
-		fmt.Println("MEASUREMENT_INFO_REPLY")
 	case shared.TIME_DIFF_REQUEST:
 		fmt.Println("TIME_DIFF_REQUEST")
-	case shared.TIME_DIFF_REPLY:
-		fmt.Println("TIME_DIFF_REPLY")
 	case shared.WARNING_ERR_MSG:
 		fmt.Println("WARNING_ERR_MSG")
 	default:
