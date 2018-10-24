@@ -71,7 +71,8 @@ release:
 
 
 install:
-	go install -ldflags $(LDFLAGS) cmd/mapago/mapago.go
+	go install -ldflags $(LDFLAGS) cmd/client/client.go
+	go install -ldflags $(LDFLAGS) cmd/server/server.go
 
 build: $(TARGET)
 	@true
