@@ -70,6 +70,7 @@ func convDataStructToJson(data *shared.DataObj) []byte {
 // use it to play around...
 // note "Json" is not precise: includes type field aswell
 func constructDummyJson() []byte {
+	var resB []byte
 	// construct DataObj that will be the actual JSON
 	// in this case construct info req:
 	dataObj := shared.DataObj{Id: "1337",
@@ -83,19 +84,15 @@ func constructDummyJson() []byte {
 		os.Exit(1)
 	}
 
-	fmt.Println("json encoded version of dataObj: ", string(jsonB))
-
 	// now take a byte slice add the type field 0x01
-	// needed: memory representation in big endian!
-	fmt.Println("length of json Bytes: ", len(jsonB))
+	typeB := make([]byte, 2)
+	binary.BigEndian.PutUint16(typeB[0:2], 0x01)
 
-	b := make([]byte, len(jsonB) + 1)
+	// add type field to result
+	resB = append(resB, typeB...)
 
-	binary.BigEndian.PutUint16(b[0:], 0x01)
-
-	fmt.Println("length of b: ", len(b))
-	fmt.Printf("content of b: % x", b)
-
-
-	return []byte("ShutUpGo")
+	// add json field to result
+	resB = append(resB, jsonB...)
+	fmt.Printf("\nbinary content of resB: % x", resB)
+	return resB
 }
