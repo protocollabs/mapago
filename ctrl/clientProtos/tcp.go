@@ -34,7 +34,7 @@ func NewTcpConnObj(tcpSock *net.TCPConn) *TcpConnObj {
 	return tcpConnObj
 }
 
-func (tcp *TcpObj) Start() {
+func (tcp *TcpObj) Start(jsonData []byte) {
 	fmt.Println("TcpObj start() called")
 	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
 
@@ -55,7 +55,7 @@ func (tcp *TcpObj) Start() {
 	defer tcpConnObj.connSock.Close()
 
 	for {
-		_, err := tcpConnObj.connSock.Write([]byte("ClientRequest"))
+		_, err := tcpConnObj.connSock.Write(jsonData)
 		if err != nil {
 			fmt.Printf("Cannot send!!! %s\n", err)
 			os.Exit(1)

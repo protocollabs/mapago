@@ -2,6 +2,9 @@ package main
 
 import "fmt"
 import "flag"
+import "encoding/json"
+import "encoding/binary"
+import "os"
 import "github.com/monfron/mapago/ctrl/clientProtos"
 import "github.com/monfron/mapago/ctrl/shared"
 
@@ -39,7 +42,21 @@ func runTcpClient(addr string, port int, callSize int) {
 	// use case: we receive a server response. using the server response
 	// we can determine what next to do. i.e. info rep => do msmt start req etc.
 	tcpObj := clientProtos.NewTcpObj("TcpConn1", addr, port, callSize)
-	tcpObj.Start()
+
+	// TODO: build json "dummy" message
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.INFO_REQUEST
+	reqDataObj.Id = "fancyId"
+	reqDataObj.Seq = 0x00
+	reqDataObj.Ts = "2018-10-25T13: 34:47.717163"
+	reqDataObj.Secret = "fancySecret"
+
+	reqJson := convDataStructToJson(reqDataObj)
+
+	fmt.Printf("request JSON is: % x", reqJson)
+
+
+	tcpObj.Start(reqJson)
 
 	// TODO: wait for answer from server and then decide next communication steps
 	// not necessary for toy server
@@ -61,6 +78,24 @@ func convJsonToDataStruct(jsonData []byte) *shared.DataObj {
 }
 
 func convDataStructToJson(data *shared.DataObj) []byte {
-	fmt.Println("convert data struct to json (i.e. prepare outgoing msg")
-	return []byte("ShutUpGo")
+	fmt.Println("\nConverting datastruct ", *data)
+
+	var resB []byte
+
+	// construct type field
+	typeB := make([]byte, 2)
+	binary.BigEndian.PutUint16(typeB[0:2], uint16(data.Type))
+
+	// ignore Type
+	data.Type = 0
+
+	jsonB, err := json.Marshal(data)
+	if err != nil {
+		fmt.Printf("Cannot Marshal %s\n", err)
+		os.Exit(1)
+	}
+
+	resB = append(resB, typeB...)
+	resB = append(resB, jsonB...)
+	return resB
 }
