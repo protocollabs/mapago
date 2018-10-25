@@ -79,20 +79,17 @@ func convJsonToDataStruct(jsonData []byte) *shared.DataObj {
 
 	dataObj := new(shared.DataObj)
 
-	// NOTE: unmarshal should only
-	// populate matched fields of json blob and struct
-	// still: "Type" of the struct is overwritten
-	// even though it is not part of the unmarshaled JSON blob
+	// FIXED
+	// extract type field and add to struct
+	typeField := jsonData[0:2]
+	dataObj.Type = uint64(binary.BigEndian.Uint16(typeField))
+
 	jsonB :=  jsonData[2:]
 	err := json.Unmarshal(jsonB, dataObj)
 	if err != nil {
 		fmt.Printf("Cannot Unmarshal %s\n", err)
 		os.Exit(1)
 	}
-
-	// extract type field and add to struct
-	typeField := jsonData[0:2]
-	dataObj.Type = uint64(binary.BigEndian.Uint16(typeField))
 
 	return dataObj
 }
