@@ -4,6 +4,7 @@ import "fmt"
 import "net"
 import "strconv"
 import "os"
+import "github.com/monfron/mapago/ctrl/shared"
 
 // classes
 
@@ -67,7 +68,10 @@ func (tcp *TcpObj) Start(jsonData []byte) {
 			os.Exit(1)
 		}
 
-		fmt.Println("Client read num bytes: ", bytes)
-		fmt.Println("Client received from server: ", buf)
+		fmt.Println("\nClient read num bytes: ", bytes)
+		fmt.Printf(" \nClient received from server: % x", buf)
+		dataObj := shared.ConvJsonToDataStruct(buf[:37])
+		fmt.Println("\nReceived Data struct: ", dataObj)
+
 	}
 }

@@ -2,8 +2,6 @@ package main
 
 import "fmt"
 import "flag"
-import "encoding/json"
-import "encoding/binary"
 import "os"
 import "github.com/monfron/mapago/ctrl/serverProtos"
 import "github.com/monfron/mapago/ctrl/shared"
@@ -40,14 +38,14 @@ func runServer(port int, callSize int) {
 
 	for {
 		request := <- ch
-		fmt.Printf("Server received from client: % x", request)
+		fmt.Printf("Server received from client: % x", request.Json)
 
 		repDataObj := new(shared.DataObj)
 		// TODO we have to cut the received JSON
 		// (JSON is for example only 76 bytes
 		// but application buffer read is larger)
 		// or rsult in unmarshaling error => HARDCODED ATM
-		reqDataObj := convJsonToDataStruct(request.Json[:76])
+		reqDataObj := shared.ConvJsonToDataStruct(request.Json[:76])
 
 		switch reqDataObj.Type {
 		case shared.INFO_REQUEST:
@@ -82,50 +80,7 @@ func runServer(port int, callSize int) {
 			os.Exit(1)
 		}
 
-		json := convDataStructToJson(repDataObj)
+		json := shared.ConvDataStructToJson(repDataObj)
 		request.ConnObj.WriteAnswer(json)
 	}
-}
-
-func convJsonToDataStruct(jsonData []byte) *shared.DataObj {
-	fmt.Printf("\n Converting json data: % x", jsonData)
-
-	dataObj := new(shared.DataObj)
-
-	// FIXED
-	// extract type field and add to struct
-	typeField := jsonData[0:2]
-	dataObj.Type = uint64(binary.BigEndian.Uint16(typeField))
-
-	jsonB :=  jsonData[2:]
-	err := json.Unmarshal(jsonB, dataObj)
-	if err != nil {
-		fmt.Printf("Cannot Unmarshal %s\n", err)
-		os.Exit(1)
-	}
-
-	return dataObj
-}
-
-func convDataStructToJson(data *shared.DataObj) []byte {
-	fmt.Println("\nConverting datastruct ", *data)
-
-	var resB []byte
-
-	// construct type field
-	typeB := make([]byte, 2)
-	binary.BigEndian.PutUint16(typeB[0:2], uint16(data.Type))
-
-	// ignore Type
-	data.Type = 0
-
-	jsonB, err := json.Marshal(data)
-	if err != nil {
-		fmt.Printf("Cannot Marshal %s\n", err)
-		os.Exit(1)
-	}
-
-	resB = append(resB, typeB...)
-	resB = append(resB, jsonB...)
-	return resB
 }
