@@ -6,6 +6,7 @@ import "os"
 import "github.com/monfron/mapago/ctrl/serverProtos"
 import "github.com/monfron/mapago/ctrl/shared"
 
+
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
 
@@ -25,6 +26,7 @@ func main() {
 }
 
 func runServer(port int, callSize int) {
+	var repDataObj *shared.DataObj
 	ch := make(chan shared.ChResult)
 	fmt.Println(ch)
 
@@ -38,26 +40,11 @@ func runServer(port int, callSize int) {
 
 	for {
 		request := <- ch
-		repDataObj := new(shared.DataObj)
-		// TODO we have to cut the received JSON
-		// (JSON is for example only 76 bytes
-		// but application buffer read is larger)
-		// or rsult in unmarshaling error => HARDCODED ATM
 		reqDataObj := shared.ConvJsonToDataStruct(request.Json)
 
 		switch reqDataObj.Type {
 		case shared.INFO_REQUEST:
-			fmt.Println("Construct INFO_REP")
-			// POSSIBLE AS A SEPARATE FUNC
-			// i.e. constructInfoReply(repDataObj) etc.
-			// not yet for complexity
-			repDataObj.Type = shared.INFO_REPLY
-			repDataObj.Id = "fancyId"
-			repDataObj.Seq_rp = reqDataObj.Seq
-			// repDataObj.modules
-			// repDataObj.Arch
-			// repDataObj.Os
-			repDataObj.Info = "fancyInfo"
+			repDataObj = constructInfoReply(reqDataObj)
 		case shared.MEASUREMENT_START_REQUESTS:
 			fmt.Println("Construct MEASUREMENT_START_REP")
 
@@ -81,4 +68,17 @@ func runServer(port int, callSize int) {
 		json := shared.ConvDataStructToJson(repDataObj)
 		request.ConnObj.WriteAnswer(json)
 	}
+}
+
+func constructInfoReply(reqDataObj *shared.DataObj) *shared.DataObj{
+	fmt.Println("Constructing INFO_REP")
+	repDataObj := new(shared.DataObj)
+	repDataObj.Type = shared.INFO_REPLY
+	repDataObj.Id = "fancyId"
+	repDataObj.Seq_rp = reqDataObj.Seq
+	// repDataObj.modules
+	// repDataObj.Arch
+	// repDataObj.Os
+	repDataObj.Info = "fancyInfo"
+	return repDataObj
 }
