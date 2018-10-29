@@ -70,7 +70,7 @@ func (tcp *TcpObj) Start(jsonData []byte) {
 
 		fmt.Println("\nClient read num bytes: ", bytes)
 		fmt.Printf(" \nClient received from server: % x", buf)
-		dataObj := shared.ConvJsonToDataStruct(buf[:37])
+		dataObj := shared.ConvJsonToDataStruct(buf[:bytes])
 		fmt.Println("\nReceived Data struct: ", dataObj)
 
 	}

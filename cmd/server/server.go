@@ -38,14 +38,12 @@ func runServer(port int, callSize int) {
 
 	for {
 		request := <- ch
-		fmt.Printf("Server received from client: % x", request.Json)
-
 		repDataObj := new(shared.DataObj)
 		// TODO we have to cut the received JSON
 		// (JSON is for example only 76 bytes
 		// but application buffer read is larger)
 		// or rsult in unmarshaling error => HARDCODED ATM
-		reqDataObj := shared.ConvJsonToDataStruct(request.Json[:76])
+		reqDataObj := shared.ConvJsonToDataStruct(request.Json)
 
 		switch reqDataObj.Type {
 		case shared.INFO_REQUEST:

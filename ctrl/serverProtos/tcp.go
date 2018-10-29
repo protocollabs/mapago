@@ -93,8 +93,7 @@ func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult, tcpAccepted *net.TCP
 
 		chRequest := new(shared.ChResult)
 		chRequest.ConnObj = tcpConn
-		chRequest.Json = buf
-
+		chRequest.Json = buf[:bytes]
 		fmt.Printf("Sending into channel\n")
 		ch <- *chRequest
 	}
