@@ -77,7 +77,7 @@ func constructInfoReply(reqDataObj *shared.DataObj) *shared.DataObj {
 	repDataObj := new(shared.DataObj)
 	repDataObj.Type = shared.INFO_REPLY
 	repDataObj.Id = shared.ConstructId()
-	repDataObj.Seq = 0x00
+	repDataObj.Seq = "0"
 	repDataObj.Seq_rp = reqDataObj.Seq
 	// repDataObj.modules
 	// repDataObj.Arch

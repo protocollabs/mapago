@@ -44,7 +44,7 @@ func runTcpClient(addr string, port int, callSize int) {
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.INFO_REQUEST
 	reqDataObj.Id = shared.ConstructId()
-	reqDataObj.Seq = 0x00
+	reqDataObj.Seq = "0"
 	reqDataObj.Ts = "2018-10-25T13: 34:47.717163"
 	reqDataObj.Secret = "fancySecret"
 

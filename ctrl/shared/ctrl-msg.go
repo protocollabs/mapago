@@ -26,17 +26,17 @@ type DataObj struct {
 	// not part of the actual json blob...so could be string too
 	Type uint64 `json:",omitempty"`
 	Id string `json:",omitempty"`
-	Seq uint64 `json:",omitempty"`
+	Seq string `json:",omitempty"`
 	// TODO: check if time.Data can be handled
 	Ts string `json:",omitempty"`
 	Secret string `json:",omitempty"`
-	Seq_rp uint64 `json:",omitempty"`
+	Seq_rp string `json:",omitempty"`
 	Arch string `json:",omitempty"`
 	Os string `json:",omitempty"`
 	Info string `json:",omitempty"`
 	Status string `json:",omitempty"`
-	Measurement_delay uint32 `json:",omitempty"`
-	Measurement_time_max uint32 `json:",omitempty"`
+	Measurement_delay string `json:",omitempty"`
+	Measurement_time_max string `json:",omitempty"`
 	Padding string `json:",omitempty"`
 	/*
 	TODO: how to handle
