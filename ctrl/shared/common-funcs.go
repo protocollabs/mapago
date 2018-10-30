@@ -4,7 +4,8 @@ import "fmt"
 import "encoding/json"
 import "encoding/binary"
 import "os"
-
+import "os/exec"
+import "strings"
 
 func ConvJsonToDataStruct(jsonData []byte) *DataObj {
 	fmt.Printf("\n Converting json data: % x", jsonData)
@@ -47,4 +48,23 @@ func ConvDataStructToJson(data *DataObj) []byte {
 	resB = append(resB, typeB...)
 	resB = append(resB, jsonB...)
 	return resB
+}
+
+func ConstructId() string {
+	hostName, err := os.Hostname()
+	if err != nil {
+		fmt.Printf("Cannot get hostname %s\n", err)
+		os.Exit(1)
+	}
+
+	uuid, err := exec.Command("uuidgen").Output()
+	if err != nil {
+		fmt.Printf("Cannot construct uuid %s\n", err)
+		os.Exit(1)
+	}
+
+	id := []string{}
+	id = append(id, hostName)
+	id = append(id, strings.TrimSuffix(string(uuid[:]), "\n"))
+	return strings.Join(id, "=")
 }

@@ -43,16 +43,13 @@ func runTcpClient(addr string, port int, callSize int) {
 	// TODO: build json "dummy" message
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.INFO_REQUEST
-	reqDataObj.Id = "fancyId"
+	reqDataObj.Id = shared.ConstructId()
 	reqDataObj.Seq = 0x00
 	reqDataObj.Ts = "2018-10-25T13: 34:47.717163"
 	reqDataObj.Secret = "fancySecret"
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
-
-	fmt.Printf("request JSON is: % x", reqJson)
-
-
+	fmt.Printf("\nrequest JSON is: % s", reqJson)
 	tcpObj.Start(reqJson)
 
 	// TODO: wait for answer from server and then decide next communication steps

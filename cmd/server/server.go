@@ -70,11 +70,14 @@ func runServer(port int, callSize int) {
 	}
 }
 
-func constructInfoReply(reqDataObj *shared.DataObj) *shared.DataObj{
+func constructInfoReply(reqDataObj *shared.DataObj) *shared.DataObj {
 	fmt.Println("Constructing INFO_REP")
+
+	// construct ID
 	repDataObj := new(shared.DataObj)
 	repDataObj.Type = shared.INFO_REPLY
-	repDataObj.Id = "fancyId"
+	repDataObj.Id = shared.ConstructId()
+	repDataObj.Seq = 0x00
 	repDataObj.Seq_rp = reqDataObj.Seq
 	// repDataObj.modules
 	// repDataObj.Arch
