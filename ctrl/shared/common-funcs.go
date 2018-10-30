@@ -6,6 +6,9 @@ import "encoding/binary"
 import "os"
 import "os/exec"
 import "strings"
+import "time"
+
+const DATE_FMT = "2006-01-02 15:04:05.000000000"
 
 func ConvJsonToDataStruct(jsonData []byte) *DataObj {
 	fmt.Printf("\n Converting json data: % x", jsonData)
@@ -67,4 +70,19 @@ func ConstructId() string {
 	id = append(id, hostName)
 	id = append(id, strings.TrimSuffix(string(uuid[:]), "\n"))
 	return strings.Join(id, "=")
+}
+
+func ConvCurrDateToStr() string {
+	dateStr := time.Now().Format(DATE_FMT)
+	return dateStr
+}
+
+func ConvStrDateToNatDate(date string) time.Time {
+	time, err := time.Parse(DATE_FMT, date)
+	if err != nil {
+		fmt.Printf("Cannot parse str to time % s \n", err)
+		os.Exit(1)
+	}
+
+	return time
 }

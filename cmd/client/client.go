@@ -45,7 +45,7 @@ func runTcpClient(addr string, port int, callSize int) {
 	reqDataObj.Type = shared.INFO_REQUEST
 	reqDataObj.Id = shared.ConstructId()
 	reqDataObj.Seq = "0"
-	reqDataObj.Ts = "2018-10-25T13: 34:47.717163"
+	reqDataObj.Ts = shared.ConvCurrDateToStr()
 	reqDataObj.Secret = "fancySecret"
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)

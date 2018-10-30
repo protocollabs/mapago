@@ -79,6 +79,8 @@ func constructInfoReply(reqDataObj *shared.DataObj) *shared.DataObj {
 	repDataObj.Id = shared.ConstructId()
 	repDataObj.Seq = "0"
 	repDataObj.Seq_rp = reqDataObj.Seq
+	// maparo STD: timestamp replied untouched by server
+	reqDataObj.Ts = reqDataObj.Ts
 	// repDataObj.modules
 	// repDataObj.Arch
 	// repDataObj.Os
