@@ -2,8 +2,10 @@ package main
 
 import "fmt"
 import "flag"
+import "os"
 import "github.com/monfron/mapago/ctrl/clientProtos"
 import "github.com/monfron/mapago/ctrl/shared"
+import "errors"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
@@ -49,11 +51,17 @@ func runTcpClient(addr string, port int, callSize int) {
 	reqDataObj.Secret = "fancySecret"
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
-	fmt.Printf("\nrequest JSON is: % s", reqJson)
-	tcpObj.Start(reqJson)
+	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
 
-	// TODO: wait for answer from server and then decide next communication steps
-	// not necessary for toy server
+	// Note: A better naming would be StartDiscoveryPhase()
+	repDataObj := tcpObj.Start(reqJson)
+
+	err := validateDiscovery(reqDataObj, repDataObj)
+	if err != nil {
+		fmt.Printf("Discovery phase failed: %s\n", err)
+		os.Exit(1)
+	}
+	// NEXT STEP Start Measurement
 }
 
 func runUdpClient(addr string, port int, callSize int) {
@@ -62,4 +70,17 @@ func runUdpClient(addr string, port int, callSize int) {
 
 func runUdpMcastClient(addr string, port int, callSize int) {
 	fmt.Println("DUMMY udp mcast module called")
+}
+
+func validateDiscovery(req *shared.DataObj, rep *shared.DataObj) error {
+	if rep.Type != shared.INFO_REPLY {
+		return errors.New("Received message is not INFO_REPLY")
+	}
+
+	if rep.Seq_rp != req.Seq {
+		return errors.New("Wrong INFO_REQUEST handled by srv")
+	}
+
+	fmt.Println("\nDiscovery phase finished. Connected to: ", rep.Id)
+	return nil
 }

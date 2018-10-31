@@ -35,8 +35,11 @@ func NewTcpConnObj(tcpSock *net.TCPConn) *TcpConnObj {
 	return tcpConnObj
 }
 
-func (tcp *TcpObj) Start(jsonData []byte) {
+// Note: A better naming would be StartDiscoveryPhase
+func (tcp *TcpObj) Start(jsonData []byte) *shared.DataObj {
 	fmt.Println("TcpObj start() called")
+
+	var repDataObj *shared.DataObj
 	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
 
 	rAddr := tcp.connAddr + ":" + strconv.Itoa(tcp.connPort)
@@ -69,8 +72,11 @@ func (tcp *TcpObj) Start(jsonData []byte) {
 		}
 
 		fmt.Println("\nClient read num bytes: ", bytes)
-		dataObj := shared.ConvJsonToDataStruct(buf[:bytes])
-		fmt.Println("\nReceived Data struct: ", dataObj)
+		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
 
+		if repDataObj.Type == shared.INFO_REPLY {
+			break
+		}
 	}
+	return repDataObj
 }
