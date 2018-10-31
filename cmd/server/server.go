@@ -9,6 +9,10 @@ import "github.com/monfron/mapago/ctrl/shared"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
+var ID string
+var ARCH string
+var OS string
+var MODULES string
 
 func main() {
 	portPtr := flag.Int("port", CTRL_PORT, "port for interacting with control channel")
@@ -27,8 +31,14 @@ func main() {
 
 func runServer(port int, callSize int) {
 	var repDataObj *shared.DataObj
+
+	// construct apriori
+	ID = shared.ConstructId()
+	OS = shared.DetectOs()
+	ARCH = shared.DetectArch()
+	MODULES = shared.ConvMapToStr(supportedModules())
+
 	ch := make(chan shared.ChResult)
-	fmt.Println(ch)
 
 	tcpObj := serverProtos.NewTcpObj("TcpConn1", port, callSize)
 	tcpObj.Start(ch)
@@ -76,14 +86,22 @@ func constructInfoReply(reqDataObj *shared.DataObj) *shared.DataObj {
 	// construct ID
 	repDataObj := new(shared.DataObj)
 	repDataObj.Type = shared.INFO_REPLY
-	repDataObj.Id = shared.ConstructId()
+	repDataObj.Id = ID
 	repDataObj.Seq = "0"
 	repDataObj.Seq_rp = reqDataObj.Seq
 	// maparo STD: timestamp replied untouched by server
 	reqDataObj.Ts = reqDataObj.Ts
-	// repDataObj.modules
-	// repDataObj.Arch
-	// repDataObj.Os
+	repDataObj.Modules = MODULES
+	repDataObj.Arch = ARCH
+	repDataObj.Os = OS
 	repDataObj.Info = "fancyInfo"
 	return repDataObj
+}
+
+func supportedModules() map[string]string {
+	fmt.Println("Constructing supported modules")
+	supportedMods := make(map[string]string)
+	supportedMods["udp-goodput"] = "no-support"
+	supportedMods["tcp-goodput"] = "no-support"
+	return supportedMods
 }

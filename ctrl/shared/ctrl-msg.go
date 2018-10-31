@@ -38,9 +38,9 @@ type DataObj struct {
 	Measurement_delay string `json:",omitempty"`
 	Measurement_time_max string `json:",omitempty"`
 	Padding string `json:",omitempty"`
+	Modules string
 	/*
 	TODO: how to handle
-	Modules []string
 	Measurement
 	ControlProtocol
 	*/

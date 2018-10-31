@@ -6,7 +6,9 @@ import "encoding/binary"
 import "os"
 import "os/exec"
 import "strings"
+import "bytes"
 import "time"
+import "runtime"
 
 const DATE_FMT = "2006-01-02 15:04:05.000000000"
 
@@ -85,4 +87,27 @@ func ConvStrDateToNatDate(date string) time.Time {
 	}
 
 	return time
+}
+
+func DetectOs() string {
+	os := runtime.GOOS
+	return os
+}
+
+func DetectArch() string {
+	arch := runtime.GOARCH
+	return arch
+}
+
+func ConvMapToStr(m map[string]string) string {
+	buf := new(bytes.Buffer)
+
+	for key, value := range m {
+		_, err := fmt.Fprintf(buf, "%s:%s ", key, value)
+		if err != nil {
+			fmt.Printf("Cannot conv map to str: %s \n", err)
+			os.Exit(1)
+		}
+	}
+	return buf.String()
 }
