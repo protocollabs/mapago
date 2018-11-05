@@ -10,6 +10,7 @@ import "github.com/monfron/mapago/ctrl/shared"
 
 type TcpObj struct {
 	connName string
+	connAddr string
 	connSrvSock *net.TCPListener
 	connPort int
 	connCallSize int
@@ -20,9 +21,10 @@ type TcpConnObj struct {
 }
 
 // constructors:
-func NewTcpObj(name string, port int, callSize int) *TcpObj {
+func NewTcpObj(name string, laddr string, port int, callSize int) *TcpObj {
 	tcpObj := new(TcpObj)
 	tcpObj.connName = name
+	tcpObj.connAddr = laddr
 	tcpObj.connPort = port
 	tcpObj.connCallSize = callSize
 	return tcpObj
@@ -46,7 +48,7 @@ func (tcpConn *TcpConnObj) WriteAnswer(answer []byte) {
 func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
 	fmt.Println("TcpObj start() called")
 
-	listenAddr := "[::]:" + strconv.Itoa(tcp.connPort)
+	listenAddr := tcp.connAddr + ":" + strconv.Itoa(tcp.connPort)
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp", listenAddr)
 	if err != nil {

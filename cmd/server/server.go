@@ -17,19 +17,20 @@ var MODULES string
 func main() {
 	portPtr := flag.Int("port", CTRL_PORT, "port for interacting with control channel")
 	callSizePtr := flag.Int("call-size", DEF_BUFFER_SIZE, "application buffer in bytes")
-
+	lAddrPtr := flag.String("listen-addr", "[::]", "addr where to listen on")
 
 	flag.Parse()
 
 	fmt.Println("mapago(c) - 2018")
 	fmt.Println("Server side")
+	fmt.Println("Listen-Addr:", *lAddrPtr)
 	fmt.Println("Port:", *portPtr)
 	fmt.Println("Call-Size:", *callSizePtr)
 
-	runServer(*portPtr, *callSizePtr)
+	runServer(*lAddrPtr, *portPtr, *callSizePtr)
 }
 
-func runServer(port int, callSize int) {
+func runServer(laddr string, port int, callSize int) {
 	var repDataObj *shared.DataObj
 
 	// construct apriori
@@ -40,7 +41,7 @@ func runServer(port int, callSize int) {
 
 	ch := make(chan shared.ChResult)
 
-	tcpObj := serverProtos.NewTcpObj("TcpConn1", port, callSize)
+	tcpObj := serverProtos.NewTcpObj("TcpConn1", laddr, port, callSize)
 	tcpObj.Start(ch)
 
 	/* WIP: disabled for reduced complexity
