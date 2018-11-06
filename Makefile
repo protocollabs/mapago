@@ -73,6 +73,7 @@ release:
 install:
 	go install -ldflags $(LDFLAGS) cmd/client/client.go
 	go install -ldflags $(LDFLAGS) cmd/server/server.go
+	go install -ldflags $(LDFLAGS) cmd/spawnTopology.go
 
 build: $(TARGET)
 	@true
