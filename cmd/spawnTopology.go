@@ -45,7 +45,7 @@ func spawnServer(numSrv int, wg *sync.WaitGroup) {
 
 	for c := 1; c <= numSrv; c++ {
 		valArg0 := "127.0.0." + strconv.Itoa(c)
-		fmt.Println("Creating server: ", valArg0)
+		fmt.Println("\nCreating server: ", valArg0)
 		procObj := exec.Command("./server", nameArg0, valArg0)
 
 		// returns stdout, stderr
@@ -81,6 +81,7 @@ func spawnClient(numClt int, wg *sync.WaitGroup) {
 	log.SetOutput(file)
 
 	for c := 1; c <= numClt; c++ {
+		time.Sleep(10 * time.Millisecond)
 		valArg0 := "127.0.0." + strconv.Itoa(c)
 		fmt.Println("\nConnecting to server: ", valArg0)
 		procObj := exec.Command("./client", nameArg0, valArg0)
@@ -90,8 +91,6 @@ func spawnClient(numClt int, wg *sync.WaitGroup) {
 			log.Printf("\nServer output dump: \n --------------------- \n %s \n ---------------------\n", string(out[:]))
 			os.Exit(1)
 		}
-		// THIS IS DEPENDENT ON THE NUM OF CLIENT/SERVER PAIRS
-		time.Sleep(1 * time.Second)
 	}
 	fmt.Printf("\nSpawned %d clients", numClt)
 	fmt.Printf("\nNo errors during %d discoveries", numClt)
