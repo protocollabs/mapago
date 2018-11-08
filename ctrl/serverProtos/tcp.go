@@ -93,12 +93,12 @@ func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult, tcpAccepted *net.TCP
 			os.Exit(1)
 		}
 
-		fmt.Println("Server read num bytes: ", bytes)
+		fmt.Println("TCP Server read num bytes: ", bytes)
 
 		chRequest := new(shared.ChResult)
 		chRequest.ConnObj = tcpConn
 		chRequest.Json = buf[:bytes]
-		fmt.Printf("Sending into channel\n")
+		fmt.Printf("TCP: Sending into channel\n")
 		ch <- *chRequest
 	}
 }

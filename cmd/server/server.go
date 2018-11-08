@@ -40,13 +40,13 @@ func runServer(laddr string, port int, callSize int) {
 
 	ch := make(chan shared.ChResult)
 
+	/* Disabled during udp dev
 	tcpObj := serverProtos.NewTcpObj("TcpConn1", laddr, port, callSize)
 	tcpObj.Start(ch)
-
-	/* WIP: disabled for reduced complexity
-	udpObj := serverProtos.NewUdpObj("UdpConn1")
-	udpObj.Start(ch)
 	*/
+
+	udpObj := serverProtos.NewUdpObj("UdpConn1", laddr, port, callSize)
+	udpObj.Start(ch)
 
 	for {
 		request := <-ch

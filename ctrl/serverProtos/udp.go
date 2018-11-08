@@ -1,66 +1,96 @@
 package serverProtos
 
 import "fmt"
-import "time"
 import "net"
+import "strconv"
+import "os"
 import "github.com/monfron/mapago/ctrl/shared"
 
 // classes
 
 type UdpObj struct {
-	connName    string
-	connAddr    string
-	connPort    int
-	connSrvSock *net.UDPConn
+	connName     string
+	connAddr     string
+	connPort     int
+	connSock     *net.UDPConn
+	connCallSize int
 }
 
 type UdpConnObj struct {
-	connSrvSock *net.UDPConn
+	connSock    *net.UDPConn
 	connCltAddr *net.UDPAddr
 }
 
 // Constructors
 
-func NewUdpObj(name string) *UdpObj {
+func NewUdpObj(name string, addr string, port int, callSize int) *UdpObj {
 	udpObj := new(UdpObj)
 	udpObj.connName = name
+	udpObj.connAddr = addr
+	udpObj.connPort = port
+	udpObj.connCallSize = callSize
 	return udpObj
 }
 
-func NewUdpConnObj() *UdpConnObj {
+func NewUdpConnObj(udpSock *net.UDPConn) *UdpConnObj {
 	udpConnObj := new(UdpConnObj)
+	udpConnObj.connSock = udpSock
 	return udpConnObj
 }
 
-// TODO Interfaces
 func (udpConn *UdpConnObj) WriteAnswer(answer []byte) {
-	fmt.Println(answer)
+	_, err := udpConn.connSock.WriteToUDP(answer, udpConn.connCltAddr)
+	if err != nil {
+		fmt.Printf("Cannot write to %s: %s", string(udpConn.connCltAddr.IP))
+		os.Exit(1)
+	}
 }
 
-// module start
 func (udp *UdpObj) Start(ch chan<- shared.ChResult) {
 	fmt.Println("UdpObj start() called")
-	go udp.handleUdpConn(ch)
+
+	listenAddr := udp.connAddr + ":" + strconv.Itoa(udp.connPort)
+	fmt.Printf("\nUDP Listening on: %s", listenAddr)
+
+	udpAddr, err := net.ResolveUDPAddr("udp", listenAddr)
+	if err != nil {
+		fmt.Printf("\nCannot construct UDP addr %s\n", err)
+		os.Exit(1)
+	}
+
+	udpConn, err := net.ListenUDP("udp", udpAddr)
+	if err != nil {
+		fmt.Printf("\nCannot listen on UDP addr %s\n!!!", err)
+		os.Exit(1)
+	}
+
+	udp.connSock = udpConn
+	go udp.handleUdpConn(ch, udpConn)
 }
 
-func (udp *UdpObj) handleUdpConn(ch chan<- shared.ChResult) {
-	fmt.Println("handleUdpConn goroutine called")
+func (udp *UdpObj) handleUdpConn(ch chan<- shared.ChResult, udpSock *net.UDPConn) {
+	fmt.Println("\nhandleUdpConn goroutine called")
 
-	udpConn := NewUdpConnObj()
-	fmt.Println("udp conn: ", *udpConn)
+	buf := make([]byte, udp.connCallSize, udp.connCallSize)
+	udpConn := NewUdpConnObj(udpSock)
 
-	start := time.Now()
+	defer udpConn.connSock.Close()
+
 	for {
-		fmt.Println("\nUDP: Sending into channel")
-		chReply := new(shared.ChResult)
-		chReply.Json = []byte("UdpStuffReceived")
-		chReply.ConnObj = udpConn
+		bytes, cltAddr, err := udpConn.connSock.ReadFromUDP(buf)
 
-		ch <- *chReply
+		if err != nil {
+			fmt.Printf("Cannot read from UDP: %s", err)
+		}
 
-		time.Sleep(1 * time.Millisecond)
-		elapsed := time.Since(start)
-		fmt.Println("UDP: Elapsed time sending channel: ", elapsed)
-		start = time.Now()
+		fmt.Println("UDP Server read num bytes: ", bytes)
+		fmt.Println("Request from UDP Client: ", cltAddr)
+		udpConn.connCltAddr = cltAddr
+
+		chRequest := new(shared.ChResult)
+		chRequest.ConnObj = udpConn
+		chRequest.Json = buf[:bytes]
+		fmt.Printf("UDP: Sending into channel\n")
+		ch <- *chRequest
 	}
 }
