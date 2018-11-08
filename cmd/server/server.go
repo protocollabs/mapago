@@ -6,7 +6,6 @@ import "os"
 import "github.com/monfron/mapago/ctrl/serverProtos"
 import "github.com/monfron/mapago/ctrl/shared"
 
-
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
 var ID string
@@ -50,7 +49,7 @@ func runServer(laddr string, port int, callSize int) {
 	*/
 
 	for {
-		request := <- ch
+		request := <-ch
 		reqDataObj := shared.ConvJsonToDataStruct(request.Json)
 
 		switch reqDataObj.Type {

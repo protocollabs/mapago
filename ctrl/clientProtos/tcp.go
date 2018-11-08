@@ -9,9 +9,9 @@ import "github.com/monfron/mapago/ctrl/shared"
 // classes
 
 type TcpObj struct {
-	connName string
-	connAddr string
-	connPort int
+	connName     string
+	connAddr     string
+	connPort     int
 	connCallSize int
 }
 

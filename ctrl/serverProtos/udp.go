@@ -2,15 +2,21 @@ package serverProtos
 
 import "fmt"
 import "time"
+import "net"
 import "github.com/monfron/mapago/ctrl/shared"
 
 // classes
 
 type UdpObj struct {
-	connName string
+	connName    string
+	connAddr    string
+	connPort    int
+	connSrvSock *net.UDPConn
 }
 
 type UdpConnObj struct {
+	connSrvSock *net.UDPConn
+	connCltAddr *net.UDPAddr
 }
 
 // Constructors

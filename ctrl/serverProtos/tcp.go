@@ -9,10 +9,10 @@ import "github.com/monfron/mapago/ctrl/shared"
 // classes
 
 type TcpObj struct {
-	connName string
-	connAddr string
-	connSrvSock *net.TCPListener
-	connPort int
+	connName     string
+	connAddr     string
+	connSrvSock  *net.TCPListener
+	connPort     int
 	connCallSize int
 }
 
@@ -81,10 +81,12 @@ func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult, tcpAccepted *net.TCP
 	tcpConn := NewTcpConnObj(tcpAccepted)
 
 	defer tcp.connSrvSock.Close()
+	// its ok here: this will be executed AFTER client send
+	// conn teardown => i.e. for loop break
 	defer tcpConn.connAcceptSock.Close()
 
 	for {
-		bytes , err := tcpConn.connAcceptSock.Read(buf)
+		bytes, err := tcpConn.connAcceptSock.Read(buf)
 
 		if err != nil {
 			fmt.Printf("Cannot read!!!! msg: %s\n", err)

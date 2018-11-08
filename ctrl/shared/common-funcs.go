@@ -22,7 +22,7 @@ func ConvJsonToDataStruct(jsonData []byte) *DataObj {
 	typeField := jsonData[0:2]
 	dataObj.Type = uint64(binary.BigEndian.Uint16(typeField))
 
-	jsonB :=  jsonData[2:]
+	jsonB := jsonData[2:]
 	err := json.Unmarshal(jsonB, dataObj)
 	if err != nil {
 		fmt.Printf("Cannot Unmarshal %s\n", err)
