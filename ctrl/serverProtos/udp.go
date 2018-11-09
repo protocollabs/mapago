@@ -41,7 +41,7 @@ func NewUdpConnObj(udpSock *net.UDPConn) *UdpConnObj {
 func (udpConn *UdpConnObj) WriteAnswer(answer []byte) {
 	_, err := udpConn.connSock.WriteToUDP(answer, udpConn.connCltAddr)
 	if err != nil {
-		fmt.Printf("Cannot write to %s: %s", string(udpConn.connCltAddr.IP))
+		fmt.Printf("Cannot write to %s: %s:%s", string(udpConn.connCltAddr.IP), strconv.Itoa(udpConn.connCltAddr.Port))
 		os.Exit(1)
 	}
 }
@@ -60,7 +60,7 @@ func (udp *UdpObj) Start(ch chan<- shared.ChResult) {
 
 	udpConn, err := net.ListenUDP("udp", udpAddr)
 	if err != nil {
-		fmt.Printf("\nCannot listen on UDP addr %s\n!!!", err)
+		fmt.Printf("\nCannot listen on UDP addr %s\n", err)
 		os.Exit(1)
 	}
 

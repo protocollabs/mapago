@@ -37,9 +37,9 @@ func NewTcpConnObj(tcpSock *net.TCPConn) *TcpConnObj {
 
 // Note: A better naming would be StartDiscoveryPhase
 func (tcp *TcpObj) Start(jsonData []byte) *shared.DataObj {
-	fmt.Println("TcpObj start() called")
-
 	var repDataObj *shared.DataObj
+
+	fmt.Println("TcpObj start() called")
 	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
 
 	rAddr := tcp.connAddr + ":" + strconv.Itoa(tcp.connPort)

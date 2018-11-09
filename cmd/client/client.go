@@ -58,14 +58,31 @@ func runTcpClient(addr string, port int, callSize int) {
 
 	err := validateDiscovery(reqDataObj, repDataObj)
 	if err != nil {
-		fmt.Printf("Discovery phase failed: %s\n", err)
+		fmt.Printf("TCP Discovery phase failed: %s\n", err)
 		os.Exit(1)
 	}
 	// NEXT STEP Start Measurement
 }
 
 func runUdpClient(addr string, port int, callSize int) {
-	fmt.Println("DUMMY udp module called")
+	udpObj := clientProtos.NewUdpObj("UdpConn1", addr, port, callSize)
+
+	// TODO: build json "dummy" message
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.INFO_REQUEST
+	reqDataObj.Id = shared.ConstructId()
+	reqDataObj.Seq = "0"
+	reqDataObj.Ts = shared.ConvCurrDateToStr()
+	reqDataObj.Secret = "fancySecret"
+
+	reqJson := shared.ConvDataStructToJson(reqDataObj)
+	repDataObj := udpObj.Start(reqJson)
+
+	err := validateDiscovery(reqDataObj, repDataObj)
+	if err != nil {
+		fmt.Printf("UDP Discovery phase failed: %s\n", err)
+		os.Exit(1)
+	}
 }
 
 func runUdpMcastClient(addr string, port int, callSize int) {
