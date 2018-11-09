@@ -64,20 +64,21 @@ func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
 
 	tcp.connSrvSock = tcpListener
 
+	go tcp.handleTcpConn(ch)
+}
+
+func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult) {
+	fmt.Println("handleTcpConn goroutine called")
+
+	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
+
 	// note: block until accepted conn established
-	tcpConn, err := tcpListener.AcceptTCP()
+	tcpAccepted, err := tcp.connSrvSock.AcceptTCP()
 	if err != nil {
 		fmt.Printf("Cannot accept: %s\n", err)
 		os.Exit(1)
 	}
 
-	go tcp.handleTcpConn(ch, tcpConn)
-}
-
-func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult, tcpAccepted *net.TCPConn) {
-	fmt.Println("handleTcpConn goroutine called")
-
-	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
 	tcpConn := NewTcpConnObj(tcpAccepted)
 
 	defer tcp.connSrvSock.Close()
