@@ -40,9 +40,10 @@ func runServer(laddr string, port int, callSize int) {
 
 	ch := make(chan shared.ChResult)
 
-	/* Disabled during udp dev
-	tcpObj := serverProtos.NewTcpObj("TcpConn1", laddr, port, callSize)
-	tcpObj.Start(ch)
+	/* Disabled during udp dev*/
+	/*
+		tcpObj := serverProtos.NewTcpObj("TcpConn1", laddr, port, callSize)
+		tcpObj.Start(ch)
 	*/
 
 	udpObj := serverProtos.NewUdpObj("UdpConn1", laddr, port, callSize)
@@ -77,6 +78,8 @@ func runServer(laddr string, port int, callSize int) {
 
 		json := shared.ConvDataStructToJson(repDataObj)
 		request.ConnObj.WriteAnswer(json)
+		request.ConnObj.CloseConn()
+		fmt.Println("Connection closed...")
 	}
 }
 

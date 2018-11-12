@@ -18,7 +18,7 @@ const (
 
 type ChResult struct {
 	Json    []byte
-	ConnObj WriterAnswer
+	ConnObj ManageConn
 }
 
 type DataObj struct {

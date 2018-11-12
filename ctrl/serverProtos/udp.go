@@ -5,6 +5,7 @@ import "net"
 import "strconv"
 import "os"
 import "github.com/monfron/mapago/ctrl/shared"
+import "io"
 
 // classes
 
@@ -46,6 +47,14 @@ func (udpConn *UdpConnObj) WriteAnswer(answer []byte) {
 	}
 }
 
+func (udpConn *UdpConnObj) CloseConn() {
+	err := udpConn.connSock.Close()
+	if err != nil {
+		fmt.Printf("Cannot close UDP conn: %s", err)
+		os.Exit(1)
+	}
+}
+
 func (udp *UdpObj) Start(ch chan<- shared.ChResult) {
 	fmt.Println("UdpObj start() called")
 
@@ -74,13 +83,24 @@ func (udp *UdpObj) handleUdpConn(ch chan<- shared.ChResult, udpSock *net.UDPConn
 	buf := make([]byte, udp.connCallSize, udp.connCallSize)
 	udpConn := NewUdpConnObj(udpSock)
 
-	defer udpConn.connSock.Close()
-
 	for {
 		bytes, cltAddr, err := udpConn.connSock.ReadFromUDP(buf)
 
+		// ok we have error condition
 		if err != nil {
-			fmt.Printf("Cannot read from UDP: %s", err)
+			if err == io.EOF {
+				fmt.Println("\nEOF detected")
+				break
+			}
+
+			if err.(*net.OpError).Err.Error() == "use of closed network connection" {
+				fmt.Println("\nClosed network detected!")
+				break
+			}
+
+			// something different serious...
+			fmt.Printf("\nCannot read from UDP! msg: %s\n", err)
+			os.Exit(1)
 		}
 
 		fmt.Println("UDP Server read num bytes: ", bytes)

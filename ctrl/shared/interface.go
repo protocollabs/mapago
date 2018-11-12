@@ -1,5 +1,6 @@
 package shared
 
-type WriterAnswer interface {
+type ManageConn interface {
 	WriteAnswer([]byte)
+	CloseConn()
 }

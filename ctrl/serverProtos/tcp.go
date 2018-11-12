@@ -5,6 +5,7 @@ import "net"
 import "strconv"
 import "os"
 import "github.com/monfron/mapago/ctrl/shared"
+import "io"
 
 // classes
 
@@ -40,6 +41,14 @@ func (tcpConn *TcpConnObj) WriteAnswer(answer []byte) {
 	_, err := tcpConn.connAcceptSock.Write(answer)
 	if err != nil {
 		fmt.Printf("Cannot send/write %s\n", err)
+		os.Exit(1)
+	}
+}
+
+func (tcpConn *TcpConnObj) CloseConn() {
+	err := tcpConn.connAcceptSock.Close()
+	if err != nil {
+		fmt.Printf("Cannot close conn %s\n", err)
 		os.Exit(1)
 	}
 }
@@ -82,24 +91,34 @@ func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult) {
 	tcpConn := NewTcpConnObj(tcpAccepted)
 
 	defer tcp.connSrvSock.Close()
-	// its ok here: this will be executed AFTER client send
-	// conn teardown => i.e. for loop break
-	defer tcpConn.connAcceptSock.Close()
 
 	for {
 		bytes, err := tcpConn.connAcceptSock.Read(buf)
 
+		// ok we have error condition
 		if err != nil {
-			fmt.Printf("Cannot read!!!! msg: %s\n", err)
+			if err == io.EOF {
+				fmt.Println("\nEOF detected")
+				break
+			}
+
+			if err.(*net.OpError).Err.Error() == "use of closed network connection" {
+				fmt.Println("\nClosed network detected!")
+				break
+			}
+
+			// something different serious...
+			fmt.Printf("\nCannot read from TCP! msg: %s\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Println("TCP Server read num bytes: ", bytes)
+		fmt.Println("\nTCP Server read num bytes: ", bytes)
 
 		chRequest := new(shared.ChResult)
 		chRequest.ConnObj = tcpConn
 		chRequest.Json = buf[:bytes]
-		fmt.Printf("TCP: Sending into channel\n")
+
+		fmt.Printf("\nTCP: Sending into channel\n")
 		ch <- *chRequest
 	}
 }
