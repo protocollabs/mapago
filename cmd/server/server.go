@@ -40,14 +40,20 @@ func runServer(laddr string, port int, callSize int) {
 
 	ch := make(chan shared.ChResult)
 
-	/* Disabled during udp dev*/
+	/* Disabled during udp mc dev*/
+
 	/*
 		tcpObj := serverProtos.NewTcpObj("TcpConn1", laddr, port, callSize)
 		tcpObj.Start(ch)
 	*/
 
-	udpObj := serverProtos.NewUdpObj("UdpConn1", laddr, port, callSize)
-	udpObj.Start(ch)
+	/*
+		udpObj := serverProtos.NewUdpObj("UdpConn1", laddr, port, callSize)
+		udpObj.Start(ch)
+	*/
+
+	udpMcObj := serverProtos.NewUdpMcObj("UdpMcConn1", laddr, port, callSize)
+	udpMcObj.Start(ch)
 
 	for {
 		request := <-ch
@@ -79,12 +85,12 @@ func runServer(laddr string, port int, callSize int) {
 		json := shared.ConvDataStructToJson(repDataObj)
 		request.ConnObj.WriteAnswer(json)
 		request.ConnObj.CloseConn()
-		fmt.Println("Connection closed...")
+		break
 	}
 }
 
 func constructInfoReply(reqDataObj *shared.DataObj) *shared.DataObj {
-	fmt.Println("Constructing INFO_REP")
+	fmt.Println("\nConstructing INFO_REP")
 
 	// construct ID
 	repDataObj := new(shared.DataObj)
@@ -102,7 +108,7 @@ func constructInfoReply(reqDataObj *shared.DataObj) *shared.DataObj {
 }
 
 func supportedModules() map[string]string {
-	fmt.Println("Constructing supported modules")
+	fmt.Println("\nConstructing supported modules")
 	supportedMods := make(map[string]string)
 	supportedMods["udp-goodput"] = "no-support"
 	supportedMods["tcp-goodput"] = "no-support"

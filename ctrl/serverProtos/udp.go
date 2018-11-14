@@ -10,9 +10,10 @@ import "io"
 // classes
 
 type UdpObj struct {
-	connName     string
-	connAddr     string
-	connPort     int
+	connName string
+	connAddr string
+	connPort int
+	// do we really need that?
 	connSock     *net.UDPConn
 	connCallSize int
 }
