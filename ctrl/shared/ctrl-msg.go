@@ -16,6 +16,14 @@ const (
 	WARNING_ERR_MSG            = 255
 )
 
+const (
+	IP4_LINK_LOCAL_MC = "224.0.0.1"
+	IP6_LINK_LOCAL_MC = "FF02::1"
+	CONTROL_PORT  = 64321
+)
+
+
+
 type ChResult struct {
 	Json    []byte
 	ConnObj ManageConn

@@ -14,11 +14,6 @@ const (
 	ETH_IF      = 2
 )
 
-const (
-	LINK_LOCAL_MC = "224.0.0.1"
-	CONTROL_PORT  = 64321
-)
-
 // classes
 
 type UdpMcObj struct {
@@ -57,7 +52,7 @@ func NewUdpMcConnObj(udpMcSock *net.UDPConn) *UdpMcConnObj {
 
 func (udpMcConn *UdpMcConnObj) WriteAnswer(answer []byte) {
 
-	rAddr := LINK_LOCAL_MC + ":" + strconv.Itoa(CONTROL_PORT)
+	rAddr := shared.IP4_LINK_LOCAL_MC + ":" + strconv.Itoa(shared.CONTROL_PORT)
 	rUpdMcAddr, err := net.ResolveUDPAddr("udp", rAddr)
 	if err != nil {
 		fmt.Printf("\nUDP MC: Cannot resolve UDP MC: %s", err)

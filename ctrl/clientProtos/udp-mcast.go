@@ -12,11 +12,6 @@ const (
 	ETH_IF = 2
 )
 
-const (
-	LINK_LOCAL_MC = "224.0.0.1"
-	CONTROL_PORT = 64321
-)
-
 // classes
 
 type UdpMcObj struct {
@@ -94,7 +89,7 @@ func (udpMc *UdpMcObj) Start(jsonData []byte) *shared.DataObj {
 		*/
 
 		/* OPTION 2 "Req: Multicast, Rep: Multicast" */
-		lAddr :=  LINK_LOCAL_MC + ":" + strconv.Itoa(CONTROL_PORT)
+		lAddr :=  shared.IP4_LINK_LOCAL_MC + ":" + strconv.Itoa(shared.CONTROL_PORT)
 		lUdpMcAddr, err := net.ResolveUDPAddr("udp", lAddr)
 		if err != nil {
 			fmt.Printf("\nUDP MC: Cannot construct UDP addr %s\n", err)
