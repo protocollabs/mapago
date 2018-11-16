@@ -62,6 +62,9 @@ func runServer(laddr string, port int, callSize int) {
 		switch reqDataObj.Type {
 		case shared.INFO_REQUEST:
 			repDataObj = constructInfoReply(reqDataObj)
+		case shared.INFO_REPLY:
+			fmt.Println("I received an INFO_REPLY, I am ignoring this")
+			continue
 		case shared.MEASUREMENT_START_REQUESTS:
 			fmt.Println("Construct MEASUREMENT_START_REP")
 

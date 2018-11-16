@@ -10,16 +10,20 @@ import "io"
 // import "reflect"
 
 const (
-	LOOPBACK_IF = "lo"
-	// predictable network interface naming
-	ETH_IF = "enp0s31f6"
+	LOOPBACK_IF = 1
+	ETH_IF      = 2
+)
+
+const (
+	LINK_LOCAL_MC = "224.0.0.1"
+	CONTROL_PORT  = 64321
 )
 
 // classes
 
 type UdpMcObj struct {
 	connName   string
-	connMcAddr string // listen to this address
+	connMcAddr string
 	connPort   int
 	// do we really need that?
 	connMcSock   *net.UDPConn
@@ -27,16 +31,10 @@ type UdpMcObj struct {
 }
 
 type UdpMcConnObj struct {
-	// ATM this is the multicast socket
-	// this will be closed in server.go after we wrote the reply
+	// socket for receiving multicasts
 	connMcSock *net.UDPConn
-
-	// TODO: if we want to reply with UC we
-	// have to open a UC socket for writing
-	// consequences: the new UC socket has to be established within handleUdpConn
-	// i.e. connUcSock *net.UDPConn
-
-	// TODO: this should be the dest UC addr obtained via ReadFromUDP
+	// socket for sending multicasts
+	connSock    *net.UDPConn
 	connCltAddr *net.UDPAddr
 }
 
@@ -58,53 +56,76 @@ func NewUdpMcConnObj(udpMcSock *net.UDPConn) *UdpMcConnObj {
 }
 
 func (udpMcConn *UdpMcConnObj) WriteAnswer(answer []byte) {
-	// TODO: Depending on the underlying socket
-	// the reply will be a unicast or multicast reply
-	// i.e. udpMcConn.connUcSock.Write(answer)
-	fmt.Println("\nUDP MC: Dummy Write Answer!")
+
+	rAddr := LINK_LOCAL_MC + ":" + strconv.Itoa(CONTROL_PORT)
+	rUpdMcAddr, err := net.ResolveUDPAddr("udp", rAddr)
+	if err != nil {
+		fmt.Printf("\nUDP MC: Cannot resolve UDP MC: %s", err)
+		os.Exit(1)
+	}
+
+	udpConn, err := net.DialUDP("udp", nil, rUpdMcAddr)
+	if err != nil {
+		fmt.Printf("\nUDP MC: Cannot dial UDP MC: %s", err)
+		os.Exit(1)
+	}
+
+	udpMcConn.connSock = udpConn
+
+	_, err = udpMcConn.connSock.Write(answer)
+	if err != nil {
+		fmt.Printf("\nUDP MC: Cannot send multicast! %s", err)
+		os.Exit(1)
+	}
 }
 
-// TODO: If we have two Sockets => we have to close two aswell
-// Q: can we do this in this single method or two separate?!
 func (udpMcConn *UdpMcConnObj) CloseConn() {
 	err := udpMcConn.connMcSock.Close()
 	if err != nil {
-		fmt.Printf("Cannot close UDP conn: %s", err)
+		fmt.Printf("UDP MC: Cannot close UDP conn: %s", err)
 		os.Exit(1)
 	}
+
+	fmt.Println("\nSock for receiving MC closed")
+
+	err = udpMcConn.connSock.Close()
+	if err != nil {
+		fmt.Printf("UDP MC: Cannot close UDP conn: %s", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("\nSock for sending MC closed")
 }
 
 func (udpMc *UdpMcObj) Start(ch chan<- shared.ChResult) {
 	fmt.Println("UdpMcObj start() called")
 
-	listenAddr := udpMc.connMcAddr + ":" + strconv.Itoa(udpMc.connPort)
-	fmt.Println("UDP MC Listening on: ", listenAddr)
+	lAddr := udpMc.connMcAddr + ":" + strconv.Itoa(udpMc.connPort)
+	fmt.Println("UDP MC Listening on: ", lAddr)
 
 	ip := net.ParseIP(udpMc.connMcAddr)
 
 	// filtering link local multicast
 	if ip.IsLinkLocalMulticast() != true {
-		fmt.Printf("\nCannot listen! Addr is no ll mc addr!\n")
+		fmt.Printf("\nUDP MC: Cannot listen! Addr is no ll mc addr!\n")
 		os.Exit(1)
 	}
 
-	udpMcAddr, err := net.ResolveUDPAddr("udp", listenAddr)
+	lUdpMcAddr, err := net.ResolveUDPAddr("udp", lAddr)
 	if err != nil {
-		fmt.Printf("\nCannot construct UDP addr %s\n", err)
+		fmt.Printf("\nUDP MC: Cannot construct UDP addr %s\n", err)
 		os.Exit(1)
 	}
 
-	// TODO: What is better name or index?
-	intf, err := net.InterfaceByName(LOOPBACK_IF)
+	intf, err := net.InterfaceByIndex(ETH_IF)
 	if err != nil {
-		fmt.Printf("\nCould not determine interface by name %s", err)
+		fmt.Printf("\nUDP MC: Could not determine interface by name %s", err)
 		os.Exit(1)
 	}
-	// debug fmt.Println("\nSpec interface is: ", *intf)
 
-	udpMcConn, err := net.ListenMulticastUDP("udp", intf, udpMcAddr)
+	udpMcConn, err := net.ListenMulticastUDP("udp", intf, lUdpMcAddr)
 	if err != nil {
-		fmt.Printf("\nCannot listen on UDP addr %s\n", err)
+		fmt.Printf("\nUDP MC: Cannot listen on UDP addr %s\n", err)
 		os.Exit(1)
 	}
 
@@ -112,34 +133,31 @@ func (udpMc *UdpMcObj) Start(ch chan<- shared.ChResult) {
 	go udpMc.handleUdpConn(ch, udpMcConn)
 }
 
-func (udpMc *UdpMcObj) handleUdpConn(ch chan<- shared.ChResult, udpSock *net.UDPConn) {
+func (udpMc *UdpMcObj) handleUdpConn(ch chan<- shared.ChResult, udpMcSock *net.UDPConn) {
 	fmt.Println("\nHandle udp conn called!")
 
 	buf := make([]byte, udpMc.connCallSize, udpMc.connCallSize)
-	udpMcConn := NewUdpMcConnObj(udpSock)
+	udpMcConn := NewUdpMcConnObj(udpMcSock)
 
 	for {
-		// TODO cltAddr => could be used for UC reply
 		bytes, cltAddr, err := udpMcConn.connMcSock.ReadFromUDP(buf)
 
-		// ok we have a error condition
 		if err != nil {
 			if err == io.EOF {
-				fmt.Println("\nEOF detected")
+				fmt.Println("\nUDP MC: EOF detected")
 				break
 			}
 
 			if err.(*net.OpError).Err.Error() == "use of closed network connection" {
-				fmt.Println("\nClosed network detected!")
+				fmt.Println("\nUDP MC: Closed network detected!")
 				break
 			}
 
 			// something different serious...
-			fmt.Printf("\nCannot read from UDP! msg: %s\n", err)
+			fmt.Printf("\nUDP MC: Cannot read from UDP! msg: %s\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Println("\nUDP MC Server read num bytes: ", bytes)
 		fmt.Println("\nMulticast Request from UDP Client: ", cltAddr)
 		udpMcConn.connCltAddr = cltAddr
 
