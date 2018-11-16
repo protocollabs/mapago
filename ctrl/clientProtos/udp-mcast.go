@@ -5,22 +5,29 @@ import "fmt"
 import "strconv"
 import "os"
 import "github.com/monfron/mapago/ctrl/shared"
+import "io"
+
+const (
+	LOOPBACK_IF = 1
+	ETH_IF = 2
+)
+
+const (
+	LINK_LOCAL_MC = "224.0.0.1"
+	CONTROL_PORT = 64321
+)
 
 // classes
 
 type UdpMcObj struct {
 	connName     string
-	connMcAddr   string // write to this address
+	connMcAddr   string
 	connPort     int
 	connCallSize int
 }
 
 type UdpMcConnObj struct {
 	connSock *net.UDPConn
-	// connSrvAddr *net.UDPAddr Q: do we get the specific address of the server
-
-	// TODO: The same socket could be used to receive additional UC
-	// we dont need an additional socket
 }
 
 // Constructors
@@ -28,15 +35,14 @@ type UdpMcConnObj struct {
 func NewUdpMcObj(name string, addr string, port int, callSize int) *UdpMcObj {
 	udpMcObj := new(UdpMcObj)
 	udpMcObj.connName = name
-	udpMcObj.connMcAddr = addr // dest addr
-	udpMcObj.connPort = port   // dest addr
+	udpMcObj.connMcAddr = addr
+	udpMcObj.connPort = port
 	udpMcObj.connCallSize = callSize
 	return udpMcObj
 }
 
 func NewUdpMcConnObj(udpSock *net.UDPConn) *UdpMcConnObj {
 	UdpMcConnObj := new(UdpMcConnObj)
-	// this is no special socket: could be used for UC and MC
 	UdpMcConnObj.connSock = udpSock
 	return UdpMcConnObj
 }
@@ -49,21 +55,20 @@ func (udpMc *UdpMcObj) Start(jsonData []byte) *shared.DataObj {
 
 	ip := net.ParseIP(udpMc.connMcAddr)
 	if ip.IsLinkLocalMulticast() != true {
-		fmt.Printf("\n Destination MC Addr is no ll mc addr!\n")
+		fmt.Printf("\nUDP MC: Destination MC Addr is no ll mc addr!\n")
 		os.Exit(1)
 	}
 
 	rAddr := udpMc.connMcAddr + ":" + strconv.Itoa(udpMc.connPort)
-	udpMcAddr, err := net.ResolveUDPAddr("udp", rAddr)
+	rUdpMcAddr, err := net.ResolveUDPAddr("udp", rAddr)
 	if err != nil {
-		fmt.Printf("\nCannot resolve UDP MC: %s", err)
+		fmt.Printf("\nUDP MC: Cannot resolve UDP MC addr: %s", err)
 		os.Exit(1)
 	}
 
-	// TODO: What happens if nil changes? sniffer!
-	udpConn, err := net.DialUDP("udp", nil, udpMcAddr)
+	udpConn, err := net.DialUDP("udp", nil, rUdpMcAddr)
 	if err != nil {
-		fmt.Printf("\nCannot dial UDP MC: %s", err)
+		fmt.Printf("\nUDP MC: Cannot dial UDP MC: %s", err)
 		os.Exit(1)
 	}
 
@@ -71,17 +76,14 @@ func (udpMc *UdpMcObj) Start(jsonData []byte) *shared.DataObj {
 	defer udpConnObj.connSock.Close()
 
 	for {
-		// write as multicast
 		_, err := udpConnObj.connSock.Write(jsonData)
 		if err != nil {
-			fmt.Printf("\nUDP MC Client: Cannot send multicast! %s", err)
+			fmt.Printf("\nUDP MC: Cannot send multicast! %s", err)
 			os.Exit(1)
 		}
 
-		// it will block here currently here: no write from SRV
-		fmt.Println("\narrived right before read")
-
-		// we could get answer as multicast or unicast
+		/* OPTION 1 "Req: Multicast, Rep: Unicast": read from socket where multicast was sent
+		STATUS: Doesnt work...
 		bytes, err := udpConnObj.connSock.Read(buf)
 		if err != nil {
 			fmt.Printf("\nUDP MC Client: Cannot Read")
@@ -89,7 +91,48 @@ func (udpMc *UdpMcObj) Start(jsonData []byte) *shared.DataObj {
 		}
 		fmt.Printf("Client read num bytes: %d", bytes)
 		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
+		*/
 
+		/* OPTION 2 "Req: Multicast, Rep: Multicast" */
+		lAddr :=  LINK_LOCAL_MC + ":" + strconv.Itoa(CONTROL_PORT)
+		lUdpMcAddr, err := net.ResolveUDPAddr("udp", lAddr)
+		if err != nil {
+			fmt.Printf("\nUDP MC: Cannot construct UDP addr %s\n", err)
+			os.Exit(1)
+		}
+		intf, err := net.InterfaceByIndex(ETH_IF)
+		if err != nil {
+			fmt.Printf("\nUDP MC: Could not determine interface by name %s", err)
+			os.Exit(1)
+		}
+
+		udpMcConn, err := net.ListenMulticastUDP("udp", intf, lUdpMcAddr)
+		if err != nil {
+			fmt.Printf("\nUDP MC: Cannot listen on UDP addr %s\n", err)
+			os.Exit(1)
+		}
+
+		bytes, srvAddr, err := udpMcConn.ReadFromUDP(buf)
+
+		// ok we have a error condition
+		if err != nil {
+			if err == io.EOF {
+				fmt.Println("\nUDP MC: EOF detected")
+				break
+			}
+
+			if err.(*net.OpError).Err.Error() == "use of closed network connection" {
+				fmt.Println("\nUDP MC: Closed network detected!")
+				break
+			}
+
+			// something different serious...
+			fmt.Printf("\nUDP MC: Cannot read from UDP! msg: %s\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("\nUDP MC: Connected with srv: ", srvAddr)
+		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
+	
 		if repDataObj.Type == shared.INFO_REPLY {
 			break
 		}
