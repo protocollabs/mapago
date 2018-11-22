@@ -1,10 +1,9 @@
-package main
+package server
 
 import "fmt"
-import "flag"
 import "os"
-import "github.com/monfron/mapago/ctrl/serverProtos"
-import "github.com/monfron/mapago/ctrl/shared"
+import "github.com/monfron/mapago/controlPlane/ctrl/serverProtos"
+import "github.com/monfron/mapago/controlPlane/ctrl/shared"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
@@ -13,23 +12,7 @@ var ARCH string
 var OS string
 var MODULES string
 
-func main() {
-	portPtr := flag.Int("port", CTRL_PORT, "port for interacting with control channel")
-	callSizePtr := flag.Int("call-size", DEF_BUFFER_SIZE, "application buffer in bytes")
-	lAddrPtr := flag.String("listen-addr", "[::]", "addr where to listen on")
-
-	flag.Parse()
-
-	fmt.Println("mapago(c) - 2018")
-	fmt.Println("Server side")
-	fmt.Println("Listen-Addr:", *lAddrPtr)
-	fmt.Println("Port:", *portPtr)
-	fmt.Println("Call-Size:", *callSizePtr)
-
-	runServer(*lAddrPtr, *portPtr, *callSizePtr)
-}
-
-func runServer(laddr string, port int, callSize int) {
+func RunServer(laddr string, port int, callSize int) {
 	var repDataObj *shared.DataObj
 
 	// construct apriori
@@ -42,18 +25,20 @@ func runServer(laddr string, port int, callSize int) {
 
 	/* Disabled during udp mc dev*/
 
-	/*
+
 		tcpObj := serverProtos.NewTcpObj("TcpConn1", laddr, port, callSize)
 		tcpObj.Start(ch)
-	*/
+
 
 	/*
 		udpObj := serverProtos.NewUdpObj("UdpConn1", laddr, port, callSize)
 		udpObj.Start(ch)
 	*/
 
+	/*
 	udpMcObj := serverProtos.NewUdpMcObj("UdpMcConn1", laddr, port, callSize)
 	udpMcObj.Start(ch)
+	*/
 
 	for {
 		request := <-ch
