@@ -12,7 +12,7 @@ var ARCH string
 var OS string
 var MODULES string
 
-func RunServer(laddr string, port int, callSize int) {
+func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 	var repDataObj *shared.DataObj
 
 	// construct apriori
@@ -23,22 +23,17 @@ func RunServer(laddr string, port int, callSize int) {
 
 	ch := make(chan shared.ChResult)
 
-	/* Disabled during udp mc dev*/
+	tcpObj := serverProtos.NewTcpObj("TcpConn1", lUcAddr, port, callSize)
+	tcpObj.Start(ch)
 
+	udpObj := serverProtos.NewUdpObj("UdpConn1", lUcAddr, port, callSize)
+	udpObj.Start(ch)
 
-		tcpObj := serverProtos.NewTcpObj("TcpConn1", laddr, port, callSize)
-		tcpObj.Start(ch)
-
-
-	/*
-		udpObj := serverProtos.NewUdpObj("UdpConn1", laddr, port, callSize)
-		udpObj.Start(ch)
-	*/
-
-	/*
-	udpMcObj := serverProtos.NewUdpMcObj("UdpMcConn1", laddr, port, callSize)
+	// PROBLEM: Binding to MC_Addr:CtrlPort and UC_Addr:CtrlPort does not work
+	// eventough we got a unique addressing going on
+	udpMcObj := serverProtos.NewUdpMcObj("UdpMcConn1", lMcAddr, 12346, callSize)
+	// udpMcObj := serverProtos.NewUdpMcObj("UdpMcConn1", lMcAddr, port, callSize)
 	udpMcObj.Start(ch)
-	*/
 
 	for {
 		request := <-ch
@@ -73,7 +68,6 @@ func RunServer(laddr string, port int, callSize int) {
 		json := shared.ConvDataStructToJson(repDataObj)
 		request.ConnObj.WriteAnswer(json)
 		request.ConnObj.CloseConn()
-		break
 	}
 }
 

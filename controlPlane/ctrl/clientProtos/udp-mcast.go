@@ -9,7 +9,7 @@ import "io"
 
 const (
 	LOOPBACK_IF = 1
-	ETH_IF = 2
+	ETH_IF      = 2
 )
 
 // classes
@@ -89,7 +89,7 @@ func (udpMc *UdpMcObj) Start(jsonData []byte) *shared.DataObj {
 		*/
 
 		/* OPTION 2 "Req: Multicast, Rep: Multicast" */
-		lAddr :=  shared.IP4_LINK_LOCAL_MC + ":" + strconv.Itoa(shared.CONTROL_PORT)
+		lAddr := shared.IP4_LINK_LOCAL_MC + ":" + strconv.Itoa(shared.CONTROL_PORT)
 		lUdpMcAddr, err := net.ResolveUDPAddr("udp", lAddr)
 		if err != nil {
 			fmt.Printf("\nUDP MC: Cannot construct UDP addr %s\n", err)
@@ -127,7 +127,7 @@ func (udpMc *UdpMcObj) Start(jsonData []byte) *shared.DataObj {
 		}
 		fmt.Println("\nUDP MC: Connected with srv: ", srvAddr)
 		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
-	
+
 		if repDataObj.Type == shared.INFO_REPLY {
 			break
 		}

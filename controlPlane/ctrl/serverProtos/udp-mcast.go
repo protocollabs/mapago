@@ -53,6 +53,7 @@ func NewUdpMcConnObj(udpMcSock *net.UDPConn) *UdpMcConnObj {
 func (udpMcConn *UdpMcConnObj) WriteAnswer(answer []byte) {
 
 	rAddr := shared.IP4_LINK_LOCAL_MC + ":" + strconv.Itoa(shared.CONTROL_PORT)
+	
 	rUpdMcAddr, err := net.ResolveUDPAddr("udp", rAddr)
 	if err != nil {
 		fmt.Printf("\nUDP MC: Cannot resolve UDP MC: %s", err)
