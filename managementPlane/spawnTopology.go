@@ -46,7 +46,7 @@ func spawnServer(numSrv int, wg *sync.WaitGroup) {
 	for c := 1; c <= numSrv; c++ {
 		valArg0 := "127.0.0." + strconv.Itoa(c)
 		fmt.Println("\nCreating server: ", valArg0)
-		procObj := exec.Command("./server", nameArg0, valArg0)
+		procObj := exec.Command("./mapago-server", nameArg0, valArg0)
 
 		// returns stdout, stderr
 		out, err := procObj.CombinedOutput()
@@ -84,7 +84,7 @@ func spawnClient(numClt int, wg *sync.WaitGroup) {
 		time.Sleep(10 * time.Millisecond)
 		valArg0 := "127.0.0." + strconv.Itoa(c)
 		fmt.Println("\nConnecting to server: ", valArg0)
-		procObj := exec.Command("./client", nameArg0, valArg0)
+		procObj := exec.Command("./mapago-client", nameArg0, valArg0)
 
 		out, err := procObj.CombinedOutput()
 		if err != nil {
