@@ -14,6 +14,8 @@ var MODULES string
 
 func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 	var repDataObj *shared.DataObj
+	// debug: count info_reqs
+	info_req_ctr := 0
 
 	// construct apriori
 	ID = shared.ConstructId()
@@ -23,20 +25,16 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 
 	ch := make(chan shared.ChResult)
 
-	tcpDiscObj := serverProtos.NewTcpObj("TcpConnDiscovery", lUcAddr, port, callSize)
-	tcpDiscObj.Start(ch)
+	tcpObj := serverProtos.NewTcpObj("TcpConn", lUcAddr, port, callSize)
+	tcpObj.Start(ch)
 
-	udpDiscObj := serverProtos.NewUdpObj("UdpConnDiscovery", lUcAddr, port, callSize)
-	udpDiscObj.Start(ch)
+	udpObj := serverProtos.NewUdpObj("UdpConn", lUcAddr, port, callSize)
+	udpObj.Start(ch)
 
 	// PROBLEM: Binding to MC_Addr:CtrlPort and UC_Addr:CtrlPort does not work
 	// eventough we got a unique addressing going on
-	udpMcDiscObj := serverProtos.NewUdpMcObj("UdpMcConnDiscovery", lMcAddr, 12346, callSize)
-	// udpMcObj := serverProtos.NewUdpMcObj("UdpMcConn1", lMcAddr, port, callSize)
-	udpMcDiscObj.Start(ch)
-
-	// TODO: Make storage for reacting to multiple Measurement TCP conns
-	var tcpMsmtObjStorage []*serverProtos.TcpObj
+	udpMcObj := serverProtos.NewUdpMcObj("UdpMcConn", lMcAddr, 12346, callSize)
+	udpMcObj.Start(ch)
 
 	for {
 		request := <-ch
@@ -45,37 +43,39 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 		switch reqDataObj.Type {
 		case shared.INFO_REQUEST:
 			go func() {
-				// NOTE: we need "go" here: blocking calls
+				fmt.Println("\n ------------- Info Request received ------------- ")
+				info_req_ctr++
+				fmt.Println("Number of received info request: ", info_req_ctr)
+
 				repDataObj = constructInfoReply(reqDataObj)
 				json := shared.ConvDataStructToJson(repDataObj)
 				request.ConnObj.WriteAnswer(json)
-				// deconstruct connection after discovery phase finished
+				// ATM: This closes only the TCP ACCEPT sock
+				// the UDP (server) socket is untouched 
 				request.ConnObj.CloseConn()
 
-				// TODO 0: open new tcp connection for controlling measurement phase
-				// pay attention to scope!
-				// NOT SURE HERE
+				/* 
+				My idea was to create several tcpObjs during runtime,
+				instead of "reconfiguring" the existing tcpObj every time
 				tcpMsmtObj := serverProtos.NewTcpObj("TcpConnMeasurement", lUcAddr, port, callSize)
 				tcpMsmtObj.Start(ch)
+				*/
 
-				// NOTE: what happens if we got too many INFO_REQUESTs?
-				// tcpObj is always overwritten
-				// result: we can handle just a single measurement start request
-				// save it in order to process several
-				tcpMsmtObjStorage = append(tcpMsmtObjStorage, tcpMsmtObj)
+				// Be ready for receiving another control message via TCP...
+				go tcpObj.HandleTcpConn(ch)
 			}()
 
 		case shared.INFO_REPLY:
 			fmt.Println("I received an INFO_REPLY, I am ignoring this")
 			continue
 
-		// interaction needed
-		case shared.MEASUREMENT_START_REQUESTS:
-			// NOTE: after (possible unreliable) discovery: we open reliable conn
-			// for control communication
+		case shared.MEASUREMENT_START_REQUEST:
 			go func() {
+				fmt.Println("\n------------- Measurement Start Request -------------")
 
 				// TODO 1: Mache rec_ch (empfange Solution)
+				rec_ch := make(chan shared.ChMsmt2Ctrl)
+				fmt.Println(rec_ch)
 
 				// TODO 2: main.handle_msmt_start_req(rec_ch, client_ip, proto, dataObj)
 
@@ -84,7 +84,6 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 				// TODO 4: Speichere aufgemachte verbindung unter UID
 
 				// TODO 5: schreibe über aufgemachte verbindunng raus
-				fmt.Println("Construct MEASUREMENT_START_REP")
 			}()
 
 		// interaction needed

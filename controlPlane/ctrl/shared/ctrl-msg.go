@@ -3,17 +3,17 @@ package shared
 // channel result
 
 const (
-	INFO_REQUEST               = 1
-	INFO_REPLY                 = 2
-	MEASUREMENT_START_REQUESTS = 3
-	MEASUREMENT_START_REPLY    = 4
-	MEASUREMENT_STOP_REQUEST   = 5
-	MEASUREMENT_STOP_REPLY     = 6
-	MEASUREMENT_INFO_REQUEST   = 7
-	MEASUREMENT_INFO_REPLY     = 8
-	TIME_DIFF_REQUEST          = 9
-	TIME_DIFF_REPLY            = 10
-	WARNING_ERR_MSG            = 255
+	INFO_REQUEST              = 1
+	INFO_REPLY                = 2
+	MEASUREMENT_START_REQUEST = 3
+	MEASUREMENT_START_REPLY   = 4
+	MEASUREMENT_STOP_REQUEST  = 5
+	MEASUREMENT_STOP_REPLY    = 6
+	MEASUREMENT_INFO_REQUEST  = 7
+	MEASUREMENT_INFO_REPLY    = 8
+	TIME_DIFF_REQUEST         = 9
+	TIME_DIFF_REPLY           = 10
+	WARNING_ERR_MSG           = 255
 )
 
 const (
@@ -25,6 +25,11 @@ const (
 type ChResult struct {
 	Json    []byte
 	ConnObj ManageConn
+}
+
+type ChMsmt2Ctrl struct {
+	Status string
+	Data   interface{}
 }
 
 type DataObj struct {

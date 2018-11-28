@@ -73,10 +73,10 @@ func (tcp *TcpObj) Start(ch chan<- shared.ChResult) {
 
 	tcp.connSrvSock = tcpListener
 
-	go tcp.handleTcpConn(ch)
+	go tcp.HandleTcpConn(ch)
 }
 
-func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult) {
+func (tcp *TcpObj) HandleTcpConn(ch chan<- shared.ChResult) {
 	fmt.Println("handleTcpConn goroutine called")
 
 	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
@@ -90,7 +90,8 @@ func (tcp *TcpObj) handleTcpConn(ch chan<- shared.ChResult) {
 
 	tcpConn := NewTcpConnObj(tcpAccepted)
 
-	defer tcp.connSrvSock.Close()
+	// NOTE: DONT CLOSE
+	// defer tcp.connSrvSock.Close()
 
 	for {
 		bytes, err := tcpConn.connAcceptSock.Read(buf)

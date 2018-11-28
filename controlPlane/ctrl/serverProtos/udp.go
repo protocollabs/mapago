@@ -49,11 +49,14 @@ func (udpConn *UdpConnObj) WriteAnswer(answer []byte) {
 }
 
 func (udpConn *UdpConnObj) CloseConn() {
+	/* If this is closed via INFO_REQUEST (request.ConnObj.CloseConn())
+	   We cannot receive anything via UDP
 	err := udpConn.connSock.Close()
 	if err != nil {
 		fmt.Printf("Cannot close UDP conn: %s", err)
 		os.Exit(1)
 	}
+	*/
 }
 
 func (udp *UdpObj) Start(ch chan<- shared.ChResult) {

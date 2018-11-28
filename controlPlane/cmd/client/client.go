@@ -10,7 +10,7 @@ func RunTcpClient(addr string, port int, callSize int) {
 	// TODO: we need a channel here aswell in the future
 	// use case: we receive a server response. using the server response
 	// we can determine what next to do. i.e. info rep => do msmt start req etc.
-	tcpObj := clientProtos.NewTcpObj("TcpConn1", addr, port, callSize)
+	tcpObj := clientProtos.NewTcpObj("TcpDiscoveryConn", addr, port, callSize)
 
 	// TODO: build json "dummy" message
 	reqDataObj := new(shared.DataObj)
@@ -32,6 +32,29 @@ func RunTcpClient(addr string, port int, callSize int) {
 		os.Exit(1)
 	}
 	// NEXT STEP Start Measurement
+	// sendTcpMeasurementStartRequest(addr, port, callSize)
+}
+
+// Dummy part
+func sendTcpMeasurementStartRequest(addr string, port int, callSize int) {
+	tcpObj := clientProtos.NewTcpObj("TcpMeasurementConn", addr, port, callSize)
+
+	// TODO: build json "dummy" message
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
+	reqDataObj.Id = shared.ConstructId()
+	reqDataObj.Seq = "1"
+	reqDataObj.Secret = "fancySecret"
+	// furthermore: Measurement_delay
+	// further more: Measurement_time_max string
+
+	reqJson := shared.ConvDataStructToJson(reqDataObj)
+	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
+
+	// Note: A better naming would be StartDiscoveryPhase()
+	repDataObj := tcpObj.Start(reqJson)
+	// WIP
+	fmt.Println("repDataObj is: ", repDataObj)
 }
 
 func RunUdpClient(addr string, port int, callSize int) {
@@ -53,6 +76,28 @@ func RunUdpClient(addr string, port int, callSize int) {
 		fmt.Printf("UDP Discovery phase failed: %s\n", err)
 		os.Exit(1)
 	}
+	// sendUdpMeasurementStartRequest(addr, port, callSize)
+}
+
+func sendUdpMeasurementStartRequest(addr string, port int, callSize int) {
+	udpObj := clientProtos.NewUdpObj("UdpMeasurementConn", addr, port, callSize)
+
+	// TODO: build json "dummy" message
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
+	reqDataObj.Id = shared.ConstructId()
+	reqDataObj.Seq = "1"
+	reqDataObj.Secret = "fancySecret"
+	// furthermore: Measurement_delay
+	// further more: Measurement_time_max string
+
+	reqJson := shared.ConvDataStructToJson(reqDataObj)
+	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
+
+	// Note: A better naming would be StartDiscoveryPhase()
+	repDataObj := udpObj.Start(reqJson)
+	// WIP
+	fmt.Println("repDataObj is : ", repDataObj)
 }
 
 func RunUdpMcastClient(addr string, port int, callSize int) {
