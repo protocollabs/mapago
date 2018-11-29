@@ -1,4 +1,4 @@
-package controlPlane 
+package controlPlane
 
 import "fmt"
 import "os"
@@ -14,11 +14,8 @@ var ARCH string
 var OS string
 var MODULES string
 
-
 func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 	var repDataObj *shared.DataObj
-	// debug: count info_reqs
-	info_req_ctr := 0
 
 	// construct apriori
 	ID = shared.ConstructId()
@@ -47,21 +44,19 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 		case shared.INFO_REQUEST:
 			go func() {
 				fmt.Println("\n ------------- Info Request received ------------- ")
-				info_req_ctr++
-				fmt.Println("Number of received info request: ", info_req_ctr)
 
 				repDataObj = constructInfoReply(reqDataObj)
 				json := shared.ConvDataStructToJson(repDataObj)
 				request.ConnObj.WriteAnswer(json)
 				// ATM: This closes only the TCP ACCEPT sock
-				// the UDP (server) socket is untouched 
+				// the UDP (server) socket is untouched
 				request.ConnObj.CloseConn()
 
-				/* 
-				My idea was to create several tcpObjs during runtime,
-				instead of "reconfiguring" the existing tcpObj every time
-				tcpMsmtObj := serverProtos.NewTcpObj("TcpConnMeasurement", lUcAddr, port, callSize)
-				tcpMsmtObj.Start(ch)
+				/*
+					My idea was to create several tcpObjs during runtime,
+					instead of "reconfiguring" the existing tcpObj every time
+					tcpMsmtObj := serverProtos.NewTcpObj("TcpConnMeasurement", lUcAddr, port, callSize)
+					tcpMsmtObj.Start(ch)
 				*/
 
 				// Be ready for receiving another control message via TCP...
@@ -76,9 +71,11 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 			go func() {
 				fmt.Println("\n------------- Measurement Start Request -------------")
 
-				// TODO 1: Mache rec_ch (empfange Solution)
 				rec_ch := make(chan shared.ChMsmt2Ctrl)
 				fmt.Println(rec_ch)
+
+				// DEBUG:
+				fmt.Printf("\nrequest JSON is: % s", request.Json)
 
 				// TODO 2: main.handle_msmt_start_req(rec_ch, client_ip, proto, dataObj)
 
@@ -140,7 +137,6 @@ func supportedModules() map[string]string {
 
 /* Client functionality */
 
-
 func RunTcpClient(addr string, port int, callSize int) {
 	// TODO: we need a channel here aswell in the future
 	// use case: we receive a server response. using the server response
@@ -154,7 +150,6 @@ func RunTcpClient(addr string, port int, callSize int) {
 	reqDataObj.Seq = "0"
 	reqDataObj.Ts = shared.ConvCurrDateToStr()
 	reqDataObj.Secret = "fancySecret"
-
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
 
@@ -167,7 +162,7 @@ func RunTcpClient(addr string, port int, callSize int) {
 		os.Exit(1)
 	}
 	// NEXT STEP Start Measurement
-	// sendTcpMeasurementStartRequest(addr, port, callSize)
+	sendTcpMeasurementStartRequest(addr, port, callSize)
 }
 
 // Dummy part
@@ -180,16 +175,38 @@ func sendTcpMeasurementStartRequest(addr string, port int, callSize int) {
 	reqDataObj.Id = shared.ConstructId()
 	reqDataObj.Seq = "1"
 	reqDataObj.Secret = "fancySecret"
-	// furthermore: Measurement_delay
-	// further more: Measurement_time_max string
+	reqDataObj.Measurement_delay = "666"
+	reqDataObj.Measurement_time_max = "666"
+
+	msmtObj := constructMeasurementObj("tcp-thorughput", "tcp")
+	reqDataObj.Measurement = *msmtObj
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
 
-	// Note: A better naming would be StartDiscoveryPhase()
 	repDataObj := tcpObj.Start(reqJson)
 	// WIP
 	fmt.Println("repDataObj is: ", repDataObj)
+}
+
+func constructMeasurementObj(name string, msmt_type string) *shared.MeasurementObj {
+	MsmtObj := new(shared.MeasurementObj)
+	MsmtObj.Name = name
+	MsmtObj.Type = msmt_type
+
+	confObj := constructConfiguration()
+	MsmtObj.Configuration = *confObj
+
+	return MsmtObj
+}
+
+func constructConfiguration() *shared.ConfigurationObj {
+	ConfObj := new(shared.ConfigurationObj)
+	ConfObj.Config_param1 = "FancyConfigParam1"
+	ConfObj.Config_param2 = "FancyConfigParam2"
+	ConfObj.Config_param3 = "FancyConfigParam3"
+
+	return ConfObj
 }
 
 func RunUdpClient(addr string, port int, callSize int) {

@@ -39,20 +39,33 @@ type DataObj struct {
 	Id   string `json:",omitempty"`
 	Seq  string `json:",omitempty"`
 	// TODO: check if time.Data can be handled
-	Ts                   string `json:",omitempty"`
-	Secret               string `json:",omitempty"`
-	Seq_rp               string `json:",omitempty"`
-	Arch                 string `json:",omitempty"`
-	Os                   string `json:",omitempty"`
-	Info                 string `json:",omitempty"`
-	Status               string `json:",omitempty"`
-	Measurement_delay    string `json:",omitempty"`
-	Measurement_time_max string `json:",omitempty"`
-	Padding              string `json:",omitempty"`
-	Modules              string
+	Ts                   string         `json:",omitempty"`
+	Secret               string         `json:",omitempty"`
+	Seq_rp               string         `json:",omitempty"`
+	Arch                 string         `json:",omitempty"`
+	Os                   string         `json:",omitempty"`
+	Info                 string         `json:",omitempty"`
+	Status               string         `json:",omitempty"`
+	Measurement_delay    string         `json:",omitempty"`
+	Measurement_time_max string         `json:",omitempty"`
+	Padding              string         `json:",omitempty"`
+	Modules              string         `json:",omitempty"`
+	Measurement          MeasurementObj `json:",omitempty"`
+
 	/*
 		TODO: how to handle
-		Measurement
 		ControlProtocol
 	*/
+}
+
+type MeasurementObj struct {
+	Name          string           `json:",omitempty"`
+	Type          string           `json:",omitempty"`
+	Configuration ConfigurationObj `json:",omitempty"`
+}
+
+type ConfigurationObj struct {
+	Config_param1 string `json:",omitempty"`
+	Config_param2 string `json:",omitempty"`
+	Config_param3 string `json:",omitempty"`
 }
