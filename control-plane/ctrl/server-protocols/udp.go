@@ -59,6 +59,13 @@ func (udpConn *UdpConnObj) CloseConn() {
 	*/
 }
 
+func (udpConn *UdpConnObj) DetectRemoteAddr() net.Addr {
+	rAddr := udpConn.connSock.RemoteAddr()
+	fmt.Println("Remote addr is: ", rAddr)
+
+	return rAddr
+}
+
 func (udp *UdpObj) Start(ch chan<- shared.ChResult) {
 	fmt.Println("UdpObj start() called")
 

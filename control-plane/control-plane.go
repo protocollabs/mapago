@@ -2,10 +2,11 @@ package controlPlane
 
 import "fmt"
 import "os"
+import "errors"
 import "github.com/monfron/mapago/control-plane/ctrl/server-protocols"
 import "github.com/monfron/mapago/control-plane/ctrl/client-protocols"
 import "github.com/monfron/mapago/control-plane/ctrl/shared"
-import "errors"
+import "github.com/monfron/mapago/management-plane"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
@@ -72,12 +73,9 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 				fmt.Println("\n------------- Measurement Start Request -------------")
 
 				rec_ch := make(chan shared.ChMsmt2Ctrl)
-				fmt.Println(rec_ch)
-
-				// DEBUG:
-				fmt.Printf("\nrequest JSON is: % s", request.Json)
-
-				// TODO 2: main.handle_msmt_start_req(rec_ch, client_ip, proto, dataObj)
+				client_ip := request.ConnObj.DetectRemoteAddr()
+				
+				managementPlane.HandleMsmtStartReq(rec_ch, reqDataObj, client_ip.String())
 
 				// TODO 3: warte auf antwort von messungs modul
 

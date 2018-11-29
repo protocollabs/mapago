@@ -6,6 +6,7 @@ import "strconv"
 import "os"
 import "github.com/monfron/mapago/control-plane/ctrl/shared"
 import "io"
+import "reflect"
 
 // classes
 
@@ -51,6 +52,14 @@ func (tcpConn *TcpConnObj) CloseConn() {
 		fmt.Printf("Cannot close conn %s\n", err)
 		os.Exit(1)
 	}
+}
+
+func (tcpConn *TcpConnObj) DetectRemoteAddr() net.Addr {
+	rAddr := tcpConn.connAcceptSock.RemoteAddr()
+	fmt.Println("\nRemote addr is: ", rAddr)
+	fmt.Println("raddr is type of: ", reflect.TypeOf(rAddr))
+
+	return rAddr
 }
 
 // methods

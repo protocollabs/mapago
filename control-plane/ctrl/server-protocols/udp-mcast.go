@@ -93,6 +93,13 @@ func (udpMcConn *UdpMcConnObj) CloseConn() {
 	fmt.Println("\nSock for sending MC closed")
 }
 
+func (udpMcConn *UdpMcConnObj) DetectRemoteAddr() net.Addr {
+	rAddr := udpMcConn.connMcSock.RemoteAddr()
+	fmt.Println("Remote addr is: ", rAddr)
+
+	return rAddr
+}
+
 func (udpMc *UdpMcObj) Start(ch chan<- shared.ChResult) {
 	fmt.Println("UdpMcObj start() called")
 
