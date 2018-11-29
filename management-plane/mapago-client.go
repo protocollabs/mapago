@@ -2,7 +2,9 @@ package main
 
 import "fmt"
 import "flag"
-import "github.com/monfron/mapago/controlPlane/cmd/client"
+// import "github.com/monfron/mapago/controlPlane/cmd/client"
+import "github.com/monfron/mapago/control-plane"
+
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
@@ -23,11 +25,11 @@ func main() {
 	fmt.Println("Call-Size: ", *callSizePtr)
 
 	if *ctrlProtoPtr == "tcp" {
-		client.RunTcpClient(*ctrlAddrPtr, *portPtr, *callSizePtr)
+		controlPlane.RunTcpClient(*ctrlAddrPtr, *portPtr, *callSizePtr)
 	} else if *ctrlProtoPtr == "udp" {
-		client.RunUdpClient(*ctrlAddrPtr, *portPtr, *callSizePtr)
+		controlPlane.RunUdpClient(*ctrlAddrPtr, *portPtr, *callSizePtr)
 	} else if *ctrlProtoPtr == "udp_mcast" {
-		client.RunUdpMcastClient(*ctrlAddrPtr, *portPtr, *callSizePtr)
+		controlPlane.RunUdpMcastClient(*ctrlAddrPtr, *portPtr, *callSizePtr)
 	} else {
 		panic("tcp, udp or udp_mcast as ctrl-proto")
 	}

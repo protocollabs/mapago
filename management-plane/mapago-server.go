@@ -2,7 +2,9 @@ package main
 
 import "fmt"
 import "flag"
-import "github.com/monfron/mapago/controlPlane/cmd/server"
+//import "github.com/monfron/mapago/controlPlane/cmd/server"
+import "github.com/monfron/mapago/control-plane"
+
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
@@ -22,5 +24,5 @@ func main() {
 	fmt.Println("Port:", *portPtr)
 	fmt.Println("Call-Size:", *callSizePtr)
 
-	server.RunServer(*lUcAddrPtr, *lMcAddrPtr, *portPtr, *callSizePtr)
+	controlPlane.RunServer(*lUcAddrPtr, *lMcAddrPtr, *portPtr, *callSizePtr)
 }

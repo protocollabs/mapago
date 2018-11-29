@@ -71,9 +71,9 @@ release:
 
 
 install:
-	go install -ldflags $(LDFLAGS) managementPlane/mapago-client.go
-	go install -ldflags $(LDFLAGS) managementPlane/mapago-server.go
-	go install -ldflags $(LDFLAGS) managementPlane/spawnTopology.go
+	go install -ldflags $(LDFLAGS) management-plane/mapago-client.go
+	go install -ldflags $(LDFLAGS) management-plane/mapago-server.go
+	go install -ldflags $(LDFLAGS) management-plane/spawnTopology.go
 
 build: $(TARGET)
 	@true

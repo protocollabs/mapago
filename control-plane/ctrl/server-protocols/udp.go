@@ -4,7 +4,7 @@ import "fmt"
 import "net"
 import "strconv"
 import "os"
-import "github.com/monfron/mapago/controlPlane/ctrl/shared"
+import "github.com/monfron/mapago/control-plane/ctrl/shared"
 import "io"
 
 // classes
