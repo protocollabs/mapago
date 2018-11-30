@@ -72,16 +72,19 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 			go func() {
 				fmt.Println("\n------------- Measurement Start Request -------------")
 
-				rec_ch := make(chan shared.ChMsmt2Ctrl)
-				client_ip := request.ConnObj.DetectRemoteAddr()
-				
-				managementPlane.HandleMsmtStartReq(rec_ch, reqDataObj, client_ip.String())
+				recvCh := make(chan shared.ChMsmt2Ctrl)
+				clientIp := request.ConnObj.DetectRemoteAddr()
+
+				managementPlane.HandleMsmtStartReq(recvCh, reqDataObj, clientIp.String())
 
 				// TODO 3: warte auf antwort von messungs modul
 
 				// TODO 4: Speichere aufgemachte verbindung unter UID
 
 				// TODO 5: schreibe über aufgemachte verbindunng raus
+
+				request.ConnObj.CloseConn()
+				go tcpObj.HandleTcpConn(ch)
 			}()
 
 		// interaction needed
@@ -176,7 +179,7 @@ func sendTcpMeasurementStartRequest(addr string, port int, callSize int) {
 	reqDataObj.Measurement_delay = "666"
 	reqDataObj.Measurement_time_max = "666"
 
-	msmtObj := constructMeasurementObj("tcp-thorughput", "tcp")
+	msmtObj := constructMeasurementObj("tcp-throughput", "tcp")
 	reqDataObj.Measurement = *msmtObj
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
