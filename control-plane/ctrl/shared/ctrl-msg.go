@@ -32,6 +32,11 @@ type ChMsmt2Ctrl struct {
 	Data   interface{}
 }
 
+type ChMgmt2Msmt struct {
+	Cmd    string
+	MsmtId string
+}
+
 type DataObj struct {
 	// type is currently 1 byte in type field: 0x02 etc.
 	// not part of the actual json blob...so could be string too
