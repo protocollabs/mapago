@@ -16,21 +16,21 @@ func NewTcpMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ct
 
 			switch mgmtCmd.Cmd {
 			case "Msmt_start":
-				fmt.Println("\n ok we have to start msmt module!")
+				fmt.Println("\nTODO: We have to start msmt module!")
 
 				// TODO: DO THE TCP MODULE SETUP: PORTS etc.
 
 				// SEND REPLY TO CONTROL PLANE
 				msmtReply := new(shared.ChMsmt2Ctrl)
-				msmtReply.Status = "TCP module started"
+				msmtReply.Status = "ok"
 				msmtReply.Data = mgmtCmd.MsmtId
 				ctrlCh <- *msmtReply
 
 			case "Msmt_close":
-				fmt.Println("\n ok we have to close msmt module!")
+				fmt.Println("\nTODO: We have to close msmt module!")
 
 			case "Msmt_info":
-				fmt.Println("\n ok we have to send msmt info!")
+				fmt.Println("\nTODO: We have to send msmt info!")
 
 			default:
 				fmt.Printf("Unknown measurement module")

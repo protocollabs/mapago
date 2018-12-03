@@ -73,7 +73,9 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 					POSSIBLE BLOCKING CAUSE
 				*/
 				msmtReply := <-recvCh
-				fmt.Println("\nControl plane got msg from Measurement module: ", msmtReply)
+				repDataObj = constructMsmtStartReply(reqDataObj, msmtReply)
+				json := shared.ConvDataStructToJson(repDataObj)
+				request.ConnObj.WriteAnswer(json)
 
 				request.ConnObj.CloseConn()
 				go tcpObj.HandleTcpConn(ch)
@@ -109,6 +111,7 @@ func constructInfoReply(reqDataObj *shared.DataObj) *shared.DataObj {
 	repDataObj := new(shared.DataObj)
 	repDataObj.Type = shared.INFO_REPLY
 	repDataObj.Id = ID
+	// TODO: THIS IS HARDCODED ATM
 	repDataObj.Seq = "0"
 	repDataObj.Seq_rp = reqDataObj.Seq
 	// maparo STD: timestamp replied untouched by server
@@ -117,6 +120,26 @@ func constructInfoReply(reqDataObj *shared.DataObj) *shared.DataObj {
 	repDataObj.Arch = ARCH
 	repDataObj.Os = OS
 	repDataObj.Info = "fancyInfo"
+	return repDataObj
+}
+
+func constructMsmtStartReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2Ctrl) *shared.DataObj {
+	fmt.Println("\nConstructing MSMT_START_REP")
+
+	repDataObj := new(shared.DataObj)
+	repDataObj.Type = shared.MEASUREMENT_START_REPLY
+	repDataObj.Status = msmtRep.Status
+	repDataObj.Id = ID
+	repDataObj.Seq_rp = reqDataObj.Seq
+
+	reconstructMsmtId, ok := msmtRep.Data.(string)
+	if ok == false {
+		fmt.Printf("Type assertion failed: Looking for string %t", ok)
+		os.Exit(1)
+	}
+
+	repDataObj.Measurement_id = reconstructMsmtId
+
 	return repDataObj
 }
 

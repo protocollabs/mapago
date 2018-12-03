@@ -55,10 +55,10 @@ type ChMsmtResult struct {
 }
 
 type DataObj struct {
-	Type uint64 `json:",omitempty"`
-	Id   string `json:",omitempty"`
-	Seq  string `json:",omitempty"`
-	// TODO: check if time.Data can be handled
+	Type                 uint64         `json:",omitempty"`
+	Id                   string         `json:",omitempty"`
+	Seq                  string         `json:",omitempty"`
+	Measurement_id       string         `json:",omitempty"`
 	Ts                   string         `json:",omitempty"`
 	Secret               string         `json:",omitempty"`
 	Seq_rp               string         `json:",omitempty"`
