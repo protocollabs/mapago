@@ -170,14 +170,13 @@ func RunTcpClient(addr string, port int, callSize int) {
 	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
 
 	// Note: A better naming would be StartDiscoveryPhase()
-	repDataObj := tcpObj.Start(reqJson)
+	repDataObj := tcpObj.StartDiscovery(reqJson)
 
 	err := validateDiscovery(reqDataObj, repDataObj)
 	if err != nil {
 		fmt.Printf("TCP Discovery phase failed: %s\n", err)
 		os.Exit(1)
 	}
-	// NEXT STEP Start Measurement
 	sendTcpMeasurementStartRequest(addr, port, callSize)
 }
 
@@ -200,9 +199,10 @@ func sendTcpMeasurementStartRequest(addr string, port int, callSize int) {
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
 
-	repDataObj := tcpObj.Start(reqJson)
-	// WIP
-	fmt.Println("repDataObj is: ", repDataObj)
+	repDataObj := tcpObj.StartMeasurement(reqJson)
+
+	// TODO: We have to save the received Measurement_id etc.
+	fmt.Println("\nrepDataObj is: ", repDataObj)
 }
 
 func constructMeasurementObj(name string, msmt_type string) *shared.MeasurementObj {
@@ -244,28 +244,10 @@ func RunUdpClient(addr string, port int, callSize int) {
 		fmt.Printf("UDP Discovery phase failed: %s\n", err)
 		os.Exit(1)
 	}
-	// sendUdpMeasurementStartRequest(addr, port, callSize)
-}
 
-func sendUdpMeasurementStartRequest(addr string, port int, callSize int) {
-	udpObj := clientProtos.NewUdpObj("UdpMeasurementConn", addr, port, callSize)
-
-	// TODO: build json "dummy" message
-	reqDataObj := new(shared.DataObj)
-	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
-	reqDataObj.Id = shared.ConstructId()
-	reqDataObj.Seq = "1"
-	reqDataObj.Secret = "fancySecret"
-	// furthermore: Measurement_delay
-	// further more: Measurement_time_max string
-
-	reqJson := shared.ConvDataStructToJson(reqDataObj)
-	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
-
-	// Note: A better naming would be StartDiscoveryPhase()
-	repDataObj := udpObj.Start(reqJson)
-	// WIP
-	fmt.Println("repDataObj is : ", repDataObj)
+	// Discovery phase is send as UDP/TCP/Mcast
+	// but Measurement phase is TCP
+	sendTcpMeasurementStartRequest(addr, port, callSize)
 }
 
 func RunUdpMcastClient(addr string, port int, callSize int) {
@@ -287,6 +269,10 @@ func RunUdpMcastClient(addr string, port int, callSize int) {
 		fmt.Printf("UDP MC Discovery phase failed: %s\n", err)
 		os.Exit(1)
 	}
+
+	// Discovery phase is send as UDP/TCP/Mcast
+	// but Measurement phase is TCP
+	sendTcpMeasurementStartRequest(addr, port, callSize)
 }
 
 func validateDiscovery(req *shared.DataObj, rep *shared.DataObj) error {

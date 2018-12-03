@@ -35,11 +35,10 @@ func NewTcpConnObj(tcpSock *net.TCPConn) *TcpConnObj {
 	return tcpConnObj
 }
 
-// Note: A better naming would be StartDiscoveryPhase
-func (tcp *TcpObj) Start(jsonData []byte) *shared.DataObj {
+func (tcp *TcpObj) StartDiscovery(jsonData []byte) *shared.DataObj {
 	var repDataObj *shared.DataObj
 
-	fmt.Println("TcpObj start() called")
+	fmt.Println("TcpObj StartDiscovery() called")
 	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
 
 	rAddr := tcp.connAddr + ":" + strconv.Itoa(tcp.connPort)
@@ -75,6 +74,53 @@ func (tcp *TcpObj) Start(jsonData []byte) *shared.DataObj {
 		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
 
 		if repDataObj.Type == shared.INFO_REPLY {
+			break
+		}
+	}
+	return repDataObj
+}
+
+func (tcp *TcpObj) StartMeasurement(jsonData []byte) *shared.DataObj {
+	var repDataObj *shared.DataObj
+
+	fmt.Println("TcpObj StartMeasurement() called")
+	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
+
+	rAddr := tcp.connAddr + ":" + strconv.Itoa(tcp.connPort)
+	rTcpAddr, err := net.ResolveTCPAddr("tcp", rAddr)
+	if err != nil {
+		fmt.Printf("Cannot parse \"%s\": %s\n", rAddr, err)
+		os.Exit(1)
+	}
+
+	tcpConn, err := net.DialTCP("tcp", nil, rTcpAddr)
+	if err != nil {
+		fmt.Printf("Cannot dial \"%s\": %s\n", rAddr, err)
+		os.Exit(1)
+	}
+
+	tcpConnObj := NewTcpConnObj(tcpConn)
+	defer tcpConnObj.connSock.Close()
+
+	for {
+		_, err := tcpConnObj.connSock.Write(jsonData)
+		if err != nil {
+			fmt.Printf("Cannot send!!! %s\n", err)
+			os.Exit(1)
+		}
+
+		bytes, err := tcpConnObj.connSock.Read(buf)
+		if err != nil {
+			fmt.Printf("Cannot read!!!! msg: %s\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("\nClient read num bytes: ", bytes)
+		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
+
+		// TODO
+		if repDataObj.Type == shared.MEASUREMENT_START_REPLY {
+			fmt.Printf("\nClient received an Measurement_Start_Reply!!!")
 			break
 		}
 	}
