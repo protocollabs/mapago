@@ -53,13 +53,6 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 				// the UDP (server) socket is untouched
 				request.ConnObj.CloseConn()
 
-				/*
-					My idea was to create several tcpObjs during runtime,
-					instead of "reconfiguring" the existing tcpObj every time
-					tcpMsmtObj := serverProtos.NewTcpObj("TcpConnMeasurement", lUcAddr, port, callSize)
-					tcpMsmtObj.Start(ch)
-				*/
-
 				// Be ready for receiving another control message via TCP...
 				go tcpObj.HandleTcpConn(ch)
 			}()
@@ -74,14 +67,13 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 
 				recvCh := make(chan shared.ChMsmt2Ctrl)
 				clientIp := request.ConnObj.DetectRemoteAddr()
-
 				managementPlane.HandleMsmtStartReq(recvCh, reqDataObj, clientIp.String())
 
-				// TODO 3: warte auf antwort von messungs modul
-
-				// TODO 4: Speichere aufgemachte verbindung unter UID
-
-				// TODO 5: schreibe über aufgemachte verbindunng raus
+				/*
+					POSSIBLE BLOCKING CAUSE
+				*/
+				msmtReply := <-recvCh
+				fmt.Println("\nControl plane got msg from Measurement module: ", msmtReply)
 
 				request.ConnObj.CloseConn()
 				go tcpObj.HandleTcpConn(ch)

@@ -6,13 +6,12 @@ import "math/rand"
 import "strings"
 import "strconv"
 import "github.com/monfron/mapago/control-plane/ctrl/shared"
+import "github.com/monfron/mapago/measurement-plane"
 
 var msmtStorage map[string]chan shared.ChMgmt2Msmt
 var mapInited = false
 
-func HandleMsmtStartReq(recvCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj, cltAddr string) {
-	fmt.Printf("\n\nclient addr is: % s", cltAddr)
-
+func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj, cltAddr string) {
 	switch msmtStartReq.Measurement.Name {
 	case "tcp-throughput":
 		msmtId := constructMsmtId(cltAddr)
@@ -25,6 +24,26 @@ func HandleMsmtStartReq(recvCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 
 		msmtStorage[msmtId] = msmtCh
 		fmt.Println("\nmsmtStorage content: ", msmtStorage)
+
+		/*
+			POSSIBLE BLOCKING CAUSE
+			we have to call it via goroutine asynchronously
+			or we stay within the for loop and block on the channel
+			and cannot receive anything else
+		*/
+		go measurementPlane.NewTcpMsmt(msmtCh, ctrlCh)
+
+		/*
+			POSSIBLE BLOCKING CAUSE
+			send blocks until corresponding read is called
+			PROBLEM: this function is blocked => the callee is blocked aswell
+			=> connClose() and HandleConn() cannot be called => no further requests
+		*/
+
+		mgmtCmd := new(shared.ChMgmt2Msmt)
+		mgmtCmd.Cmd = "Msmt_start"
+		mgmtCmd.MsmtId = msmtId
+		msmtCh <- *mgmtCmd
 
 	case "udp-throughput":
 		fmt.Println("\nStarting UDP throughput module")

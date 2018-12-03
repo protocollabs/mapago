@@ -27,19 +27,34 @@ type ChResult struct {
 	ConnObj ManageConn
 }
 
+/*
+reply sent from the measurement module to control:
+"i carried out your commanded duty XYZ, this is the corresponding reply"
+*/
 type ChMsmt2Ctrl struct {
 	Status string
 	Data   interface{}
 }
 
+/*
+request sent from the management plane to a measurement module:
+"measurement module do thing XYZ"
+*/
 type ChMgmt2Msmt struct {
 	Cmd    string
 	MsmtId string
 }
 
+/*
+reply sent from within the (TCP/UDP/QUIC) measurement module
+whats actually received: "i received 666 bytes"
+*/
+type ChMsmtResult struct {
+	Bytes uint64
+	Time  float64
+}
+
 type DataObj struct {
-	// type is currently 1 byte in type field: 0x02 etc.
-	// not part of the actual json blob...so could be string too
 	Type uint64 `json:",omitempty"`
 	Id   string `json:",omitempty"`
 	Seq  string `json:",omitempty"`
