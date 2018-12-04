@@ -14,6 +14,7 @@ func main() {
 	ctrlAddrPtr := flag.String("ctrl-addr", "127.0.0.1", "localhost or userdefined addr")
 	portPtr := flag.Int("port", CTRL_PORT, "port for interacting with control channel")
 	callSizePtr := flag.Int("call-size", DEF_BUFFER_SIZE, "application buffer in bytes")
+	msmtTypePtr := flag.String("msmt-type", "tcp-throughput", "tcp-throughput or udp-throughput")
 
 	flag.Parse()
 
@@ -23,13 +24,15 @@ func main() {
 	fmt.Println("Control addr:", *ctrlAddrPtr)
 	fmt.Println("Port:", *portPtr)
 	fmt.Println("Call-Size: ", *callSizePtr)
+	fmt.Println("Msmt-tpye: ", *msmtTypePtr)
+
 
 	if *ctrlProtoPtr == "tcp" {
-		controlPlane.RunTcpClient(*ctrlAddrPtr, *portPtr, *callSizePtr)
+		controlPlane.RunTcpClient(*ctrlAddrPtr, *portPtr, *callSizePtr, *msmtTypePtr)
 	} else if *ctrlProtoPtr == "udp" {
-		controlPlane.RunUdpClient(*ctrlAddrPtr, *portPtr, *callSizePtr)
+		controlPlane.RunUdpClient(*ctrlAddrPtr, *portPtr, *callSizePtr, *msmtTypePtr)
 	} else if *ctrlProtoPtr == "udp_mcast" {
-		controlPlane.RunUdpMcastClient(*ctrlAddrPtr, *portPtr, *callSizePtr)
+		controlPlane.RunUdpMcastClient(*ctrlAddrPtr, *portPtr, *callSizePtr, *msmtTypePtr)
 	} else {
 		panic("tcp, udp or udp_mcast as ctrl-proto")
 	}

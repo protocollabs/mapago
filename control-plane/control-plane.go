@@ -155,7 +155,8 @@ func supportedModules() map[string]string {
 
 /* Client functionality */
 
-func RunTcpClient(addr string, port int, callSize int) {
+// this starts the client side via tcp control channel
+func RunTcpClient(addr string, port int, callSize int, msmtType string) {
 	// TODO: we need a channel here aswell in the future
 	// use case: we receive a server response. using the server response
 	// we can determine what next to do. i.e. info rep => do msmt start req etc.
@@ -179,12 +180,20 @@ func RunTcpClient(addr string, port int, callSize int) {
 		fmt.Printf("TCP Discovery phase failed: %s\n", err)
 		os.Exit(1)
 	}
-	sendTcpMeasurementStartRequest(addr, port, callSize)
+
+	if msmtType == "tcp-throughput" {
+		sendTcpMsmtStartRequest(addr, port, callSize)
+	} else if msmtType == "udp-throughput" {
+		sendUdpMsmtStartRequest(addr, port, callSize)
+	} else {
+		panic("Measurement type not supported")
+	}
 }
 
-// Dummy part
-func sendTcpMeasurementStartRequest(addr string, port int, callSize int) {
-	tcpObj := clientProtos.NewTcpObj("TcpMeasurementConn", addr, port, callSize)
+// this starts the TCP throughput measurement
+// underlying control channel is TCP based
+func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
+	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtConn", addr, port, callSize)
 
 	// TODO: build json "dummy" message
 	reqDataObj := new(shared.DataObj)
@@ -196,6 +205,32 @@ func sendTcpMeasurementStartRequest(addr string, port int, callSize int) {
 	reqDataObj.Measurement_time_max = "666"
 
 	msmtObj := constructMeasurementObj("tcp-throughput", "module")
+	reqDataObj.Measurement = *msmtObj
+
+	reqJson := shared.ConvDataStructToJson(reqDataObj)
+	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
+
+	repDataObj := tcpObj.StartMeasurement(reqJson)
+
+	// TODO: We have to save the received Measurement_id etc.
+	fmt.Println("\nrepDataObj is: ", repDataObj)
+}
+
+// this starts the UDP throughput measurement
+// underlying control channel is TCP based
+func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
+	tcpObj := clientProtos.NewTcpObj("UdpThroughputMsmtConn", addr, port, callSize)
+
+	// TODO: build json "dummy" message
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
+	reqDataObj.Id = shared.ConstructId()
+	reqDataObj.Seq = "1"
+	reqDataObj.Secret = "fancySecret"
+	reqDataObj.Measurement_delay = "666"
+	reqDataObj.Measurement_time_max = "666"
+
+	msmtObj := constructMeasurementObj("udp-throughput", "module")
 	reqDataObj.Measurement = *msmtObj
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
@@ -220,7 +255,7 @@ func constructMeasurementObj(name string, msmt_type string) *shared.MeasurementO
 
 func constructConfiguration() *shared.ConfigurationObj {
 	ConfObj := new(shared.ConfigurationObj)
-	// TODO: these are currently dummy params => useful params 
+	// TODO: these are currently dummy params => useful params
 	ConfObj.Config_param1 = "FancyConfigParam1"
 	ConfObj.Config_param2 = "FancyConfigParam2"
 	ConfObj.Config_param3 = "FancyConfigParam3"
@@ -228,7 +263,8 @@ func constructConfiguration() *shared.ConfigurationObj {
 	return ConfObj
 }
 
-func RunUdpClient(addr string, port int, callSize int) {
+// this starts the client side via udp control channel
+func RunUdpClient(addr string, port int, callSize int, msmtType string) {
 	udpObj := clientProtos.NewUdpObj("UdpConn1", addr, port, callSize)
 
 	// TODO: build json "dummy" message
@@ -248,12 +284,17 @@ func RunUdpClient(addr string, port int, callSize int) {
 		os.Exit(1)
 	}
 
-	// Discovery phase is send as UDP/TCP/Mcast
-	// but Measurement phase is TCP
-	sendTcpMeasurementStartRequest(addr, port, callSize)
+	if msmtType == "tcp-throughput" {
+		sendTcpMsmtStartRequest(addr, port, callSize)
+	} else if msmtType == "udp-throughput" {
+		sendUdpMsmtStartRequest(addr, port, callSize)
+	} else {
+		panic("Measurement type not supported")
+	}
 }
 
-func RunUdpMcastClient(addr string, port int, callSize int) {
+// this starts the client side via udp mcast control channel
+func RunUdpMcastClient(addr string, port int, callSize int, msmtType string) {
 	udpMcObj := clientProtos.NewUdpMcObj("UdpMcConn1", addr, port, callSize)
 
 	// TODO: build json "dummy" message
@@ -273,9 +314,13 @@ func RunUdpMcastClient(addr string, port int, callSize int) {
 		os.Exit(1)
 	}
 
-	// Discovery phase is send as UDP/TCP/Mcast
-	// but Measurement phase is TCP
-	sendTcpMeasurementStartRequest(addr, port, callSize)
+	if msmtType == "tcp-throughput" {
+		sendTcpMsmtStartRequest(addr, port, callSize)
+	} else if msmtType == "udp-throughput" {
+		sendUdpMsmtStartRequest(addr, port, callSize)
+	} else {
+		panic("Measurement type not supported")
+	}
 }
 
 func validateDiscovery(req *shared.DataObj, rep *shared.DataObj) error {
