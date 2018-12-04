@@ -86,7 +86,14 @@ type MeasurementObj struct {
 }
 
 type ConfigurationObj struct {
-	Config_param1 string `json:",omitempty"`
-	Config_param2 string `json:",omitempty"`
-	Config_param3 string `json:",omitempty"`
+	Worker          string `json:",omitempty"`
+	Payload_pattern string `json:",omitempty"`
+	Port            string `json:",omitempty"`
+	Rate            string `json:",omitempty"`
+	Rate_burst      string `json:",omitempty"`
+	Packet_length   string `json:",omitempty"`
+	Dscp            string `json:",omitempty"`
+	Ttl             string `json:",omitempty"`
+	Output_format   string `json:",omitempty"`
+	Tx_method       string `json:",omitempty"`
 }
