@@ -195,7 +195,7 @@ func sendTcpMeasurementStartRequest(addr string, port int, callSize int) {
 	reqDataObj.Measurement_delay = "666"
 	reqDataObj.Measurement_time_max = "666"
 
-	msmtObj := constructMeasurementObj("tcp-throughput", "tcp")
+	msmtObj := constructMeasurementObj("tcp-throughput", "module")
 	reqDataObj.Measurement = *msmtObj
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
@@ -220,6 +220,7 @@ func constructMeasurementObj(name string, msmt_type string) *shared.MeasurementO
 
 func constructConfiguration() *shared.ConfigurationObj {
 	ConfObj := new(shared.ConfigurationObj)
+	// TODO: these are currently dummy params => useful params 
 	ConfObj.Config_param1 = "FancyConfigParam1"
 	ConfObj.Config_param2 = "FancyConfigParam2"
 	ConfObj.Config_param3 = "FancyConfigParam3"

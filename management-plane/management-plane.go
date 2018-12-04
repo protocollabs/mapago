@@ -6,7 +6,7 @@ import "math/rand"
 import "strings"
 import "strconv"
 import "github.com/monfron/mapago/control-plane/ctrl/shared"
-import "github.com/monfron/mapago/measurement-plane"
+import "github.com/monfron/mapago/measurement-plane/tcp-throughput"
 
 var msmtStorage map[string]chan shared.ChMgmt2Msmt
 var mapInited = false
@@ -31,7 +31,7 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 			or we stay within the for loop and block on the channel
 			and cannot receive anything else
 		*/
-		go measurementPlane.NewTcpMsmt(msmtCh, ctrlCh)
+		go tcpThroughput.NewTcpMsmt(msmtCh, ctrlCh)
 
 		/*
 			POSSIBLE BLOCKING CAUSE
