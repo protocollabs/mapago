@@ -73,6 +73,7 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 					POSSIBLE BLOCKING CAUSE
 				*/
 				msmtReply := <-recvCh
+				// at this point all systems are started
 				repDataObj = constructMsmtStartReply(reqDataObj, msmtReply)
 				json := shared.ConvDataStructToJson(repDataObj)
 				request.ConnObj.WriteAnswer(json)
@@ -132,13 +133,14 @@ func constructMsmtStartReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2C
 	repDataObj.Id = ID
 	repDataObj.Seq_rp = reqDataObj.Seq
 
-	reconstructMsmtId, ok := msmtRep.Data.(string)
+	msmtData, ok := msmtRep.Data.(map[string]string)
 	if ok == false {
-		fmt.Printf("Type assertion failed: Looking for string %t", ok)
+		fmt.Printf("Type assertion failed: Looking for map %t", ok)
 		os.Exit(1)
 	}
 
-	repDataObj.Measurement_id = reconstructMsmtId
+	repDataObj.Measurement_id = msmtData["msmtId"]
+	repDataObj.Message = msmtData["msg"]
 
 	return repDataObj
 }

@@ -66,6 +66,7 @@ type DataObj struct {
 	Os                   string         `json:",omitempty"`
 	Info                 string         `json:",omitempty"`
 	Status               string         `json:",omitempty"`
+	Message              string         `json:",omitempty"`
 	Measurement_delay    string         `json:",omitempty"`
 	Measurement_time_max string         `json:",omitempty"`
 	Padding              string         `json:",omitempty"`

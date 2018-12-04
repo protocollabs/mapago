@@ -5,6 +5,7 @@ import "os"
 import "github.com/monfron/mapago/control-plane/ctrl/shared"
 
 func NewTcpMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ctrl) {
+	var msmtData map[string]string
 	msmtResultCh := make(chan shared.ChMsmtResult)
 
 	// select call
@@ -23,7 +24,12 @@ func NewTcpMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ct
 				// SEND REPLY TO CONTROL PLANE
 				msmtReply := new(shared.ChMsmt2Ctrl)
 				msmtReply.Status = "ok"
-				msmtReply.Data = mgmtCmd.MsmtId
+
+				msmtData = make(map[string]string)
+				msmtData["msmtId"] = mgmtCmd.MsmtId
+				// This could be used to define a more detailed error msg
+				msmtData["msg"] = "all modules running"
+				msmtReply.Data = msmtData
 				ctrlCh <- *msmtReply
 
 			case "Msmt_close":
