@@ -15,6 +15,7 @@ var mapInited = false
 func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj, cltAddr string) {
 	switch msmtStartReq.Measurement.Name {
 	case "tcp-throughput":
+		// TODO: MOVE COMMON STUFF UP
 		msmtId := constructMsmtId(cltAddr)
 		msmtCh := make(chan shared.ChMgmt2Msmt)
 
@@ -32,7 +33,7 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 			or we stay within the for loop and block on the channel
 			and cannot receive anything else
 		*/
-		go tcpThroughput.NewTcpMsmt(msmtCh, ctrlCh)
+		go tcpThroughput.NewTcpMsmt(msmtCh, ctrlCh, msmtStartReq)
 
 		/*
 			POSSIBLE BLOCKING CAUSE
@@ -47,6 +48,7 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 		msmtCh <- *mgmtCmd
 
 	case "udp-throughput":
+		// TODO: MOVE COMMON STUFF UP
 		msmtId := constructMsmtId(cltAddr)
 		msmtCh := make(chan shared.ChMgmt2Msmt)
 
@@ -64,7 +66,7 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 			or we stay within the for loop and block on the channel
 			and cannot receive anything else
 		*/
-		go udpThroughput.NewUdpMsmt(msmtCh, ctrlCh)
+		go udpThroughput.NewUdpMsmt(msmtCh, ctrlCh, msmtStartReq)
 
 		/*
 			POSSIBLE BLOCKING CAUSE

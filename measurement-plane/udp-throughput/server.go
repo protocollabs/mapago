@@ -4,7 +4,7 @@ import "fmt"
 import "os"
 import "github.com/monfron/mapago/control-plane/ctrl/shared"
 
-func NewUdpMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ctrl) {
+func NewUdpMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj) {
 	var msmtData map[string]string
 	msmtResultCh := make(chan shared.ChMsmtResult)
 

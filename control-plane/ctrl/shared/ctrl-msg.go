@@ -96,4 +96,8 @@ type ConfigurationObj struct {
 	Ttl             string `json:",omitempty"`
 	Output_format   string `json:",omitempty"`
 	Tx_method       string `json:",omitempty"`
+
+	// useful other fields?!
+	Listen_addr string `json:",omitempty"`
+	Call_size   string `json:",omitempty"`
 }

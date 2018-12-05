@@ -24,15 +24,15 @@ func main() {
 	fmt.Println("Control addr:", *ctrlAddrPtr)
 	fmt.Println("Port:", *portPtr)
 	fmt.Println("Call-Size: ", *callSizePtr)
-	fmt.Println("Msmt-tpye: ", *msmtTypePtr)
+	fmt.Println("Msmt-type: ", *msmtTypePtr)
 
 
 	if *ctrlProtoPtr == "tcp" {
-		controlPlane.RunTcpClient(*ctrlAddrPtr, *portPtr, *callSizePtr, *msmtTypePtr)
+		controlPlane.RunTcpCtrlClient(*ctrlAddrPtr, *portPtr, *callSizePtr, *msmtTypePtr)
 	} else if *ctrlProtoPtr == "udp" {
-		controlPlane.RunUdpClient(*ctrlAddrPtr, *portPtr, *callSizePtr, *msmtTypePtr)
+		controlPlane.RunUdpCtrlClient(*ctrlAddrPtr, *portPtr, *callSizePtr, *msmtTypePtr)
 	} else if *ctrlProtoPtr == "udp_mcast" {
-		controlPlane.RunUdpMcastClient(*ctrlAddrPtr, *portPtr, *callSizePtr, *msmtTypePtr)
+		controlPlane.RunUdpMcastCtrlClient(*ctrlAddrPtr, *portPtr, *callSizePtr, *msmtTypePtr)
 	} else {
 		panic("tcp, udp or udp_mcast as ctrl-proto")
 	}

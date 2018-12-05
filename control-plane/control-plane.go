@@ -3,6 +3,7 @@ package controlPlane
 import "fmt"
 import "os"
 import "errors"
+import "strconv"
 import "github.com/monfron/mapago/control-plane/ctrl/server-protocols"
 import "github.com/monfron/mapago/control-plane/ctrl/client-protocols"
 import "github.com/monfron/mapago/control-plane/ctrl/shared"
@@ -155,8 +156,7 @@ func supportedModules() map[string]string {
 
 /* Client functionality */
 
-// this starts the client side via tcp control channel
-func RunTcpClient(addr string, port int, callSize int, msmtType string) {
+func RunTcpCtrlClient(addr string, port int, callSize int, msmtType string) {
 	// TODO: we need a channel here aswell in the future
 	// use case: we receive a server response. using the server response
 	// we can determine what next to do. i.e. info rep => do msmt start req etc.
@@ -204,7 +204,7 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	reqDataObj.Measurement_delay = "666"
 	reqDataObj.Measurement_time_max = "666"
 
-	msmtObj := constructMeasurementObj("tcp-throughput", "module")
+	msmtObj := constructMeasurementObj("tcp-throughput", "module", "5", "7000")
 	reqDataObj.Measurement = *msmtObj
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
@@ -230,7 +230,7 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	reqDataObj.Measurement_delay = "666"
 	reqDataObj.Measurement_time_max = "666"
 
-	msmtObj := constructMeasurementObj("udp-throughput", "module")
+	msmtObj := constructMeasurementObj("udp-throughput", "module", "1", "7000")
 	reqDataObj.Measurement = *msmtObj
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
@@ -242,29 +242,31 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	fmt.Println("\nrepDataObj is: ", repDataObj)
 }
 
-func constructMeasurementObj(name string, msmt_type string) *shared.MeasurementObj {
+func constructMeasurementObj(name string, msmtType string, workerNum string, port string) *shared.MeasurementObj {
 	MsmtObj := new(shared.MeasurementObj)
 	MsmtObj.Name = name
-	MsmtObj.Type = msmt_type
+	MsmtObj.Type = msmtType
 
-	confObj := constructConfiguration()
+	confObj := constructConfiguration(workerNum, port)
 	MsmtObj.Configuration = *confObj
 
 	return MsmtObj
 }
 
-func constructConfiguration() *shared.ConfigurationObj {
+func constructConfiguration(workerNum string, port string) *shared.ConfigurationObj {
 	ConfObj := new(shared.ConfigurationObj)
 	// TODO: these are currently dummy params => useful params
-	ConfObj.Config_param1 = "FancyConfigParam1"
-	ConfObj.Config_param2 = "FancyConfigParam2"
-	ConfObj.Config_param3 = "FancyConfigParam3"
+	ConfObj.Worker = workerNum
+	ConfObj.Port = port
+
+	// TODO: Hardcoded atm
+	ConfObj.Listen_addr = "169.254.206.129:"
+	ConfObj.Call_size = strconv.Itoa(DEF_BUFFER_SIZE)
 
 	return ConfObj
 }
 
-// this starts the client side via udp control channel
-func RunUdpClient(addr string, port int, callSize int, msmtType string) {
+func RunUdpCtrlClient(addr string, port int, callSize int, msmtType string) {
 	udpObj := clientProtos.NewUdpObj("UdpConn1", addr, port, callSize)
 
 	// TODO: build json "dummy" message
@@ -293,8 +295,7 @@ func RunUdpClient(addr string, port int, callSize int, msmtType string) {
 	}
 }
 
-// this starts the client side via udp mcast control channel
-func RunUdpMcastClient(addr string, port int, callSize int, msmtType string) {
+func RunUdpMcastCtrlClient(addr string, port int, callSize int, msmtType string) {
 	udpMcObj := clientProtos.NewUdpMcObj("UdpMcConn1", addr, port, callSize)
 
 	// TODO: build json "dummy" message
