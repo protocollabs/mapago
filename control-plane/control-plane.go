@@ -260,7 +260,8 @@ func constructConfiguration(workerNum string, port string) *shared.Configuration
 	ConfObj.Port = port
 
 	// TODO: Hardcoded atm
-	ConfObj.Listen_addr = "169.254.206.129:"
+	// ConfObj.Listen_addr = "169.254.206.129:"
+	ConfObj.Listen_addr = "127.0.0.1:"
 	ConfObj.Call_size = strconv.Itoa(DEF_BUFFER_SIZE)
 
 	return ConfObj

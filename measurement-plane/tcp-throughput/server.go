@@ -16,6 +16,7 @@ TODO: POSSIBLE NAMING ISSUE: 1 PACKAGE (2 files: client.go, server.go)
 func NewTcpMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj) {
 	var msmtData map[string]string
 	msmtResultCh := make(chan shared.ChMsmtResult)
+	goHeartbeatCh := make(chan bool)
 
 	// select call
 	for {
@@ -56,10 +57,24 @@ func NewTcpMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ct
 
 				for c := 1; c <= numWorkers; c++ {
 					fmt.Printf("\n\nStarting worker %d on port %d", c, startPort)
-					go tcp_server_worker(msmtResultCh, startPort, callSize, lAddr)
+					go tcp_server_worker(msmtResultCh, goHeartbeatCh, startPort, callSize, lAddr)
 					startPort++
 				}
 
+				/*
+					Handle Misconfiguration:
+					Wait for OK from goroutine, then send reply to control plane
+					true = goroutine ok, false = " not (will be basically not be send => os.Exit comes in place)
+					=> we can guarentee that a correct reply is sent to control plane
+				*/
+				for c := 1; c <= numWorkers; c++ {
+					heartbeat := <-goHeartbeatCh
+					if heartbeat != true {
+						panic("tcp_server_worker goroutine not ok")
+					}
+				}
+
+				fmt.Println("\nGoroutines ok: We are save to send a reply!")
 				/*
 					end of startTcp()
 				*/
@@ -105,20 +120,24 @@ func NewTcpMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ct
 
 }
 
-func tcp_server_worker(c chan<- shared.ChMsmtResult, port int, bufSize int, lAddr string) {
+func tcp_server_worker(c chan<- shared.ChMsmtResult, goHeartbeatCh chan<- bool, port int, bufSize int, lAddr string) {
 	listen := lAddr + strconv.Itoa(port)
 	println("Listening on", listen)
 	addr, error := net.ResolveTCPAddr("tcp", listen)
 	if error != nil {
 		fmt.Printf("Cannot parse \"%s\": %s\n", listen, error)
+		goHeartbeatCh <- false
 		os.Exit(1)
 	}
 	listener, error := net.ListenTCP("tcp", addr)
 	if error != nil {
 		fmt.Printf("Cannot listen: %s\n", error)
+		goHeartbeatCh <- false
 		os.Exit(1)
 	}
 	defer listener.Close()
+
+	goHeartbeatCh <- true
 
 	// This one is blocking
 	conn, error := listener.AcceptTCP()
