@@ -12,7 +12,7 @@ var DEF_BUFFER_SIZE = 8096 * 8
 func main() {
 	ctrlProtoPtr := flag.String("ctrl-protocol", "tcp", "tcp, udp or udp_mcast")
 	ctrlAddrPtr := flag.String("ctrl-addr", "127.0.0.1", "localhost or userdefined addr")
-	portPtr := flag.Int("port", CTRL_PORT, "port for interacting with control channel")
+	portPtr := flag.Int("ctrl-port", CTRL_PORT, "port for interacting with control channel")
 	callSizePtr := flag.Int("call-size", DEF_BUFFER_SIZE, "application buffer in bytes")
 	msmtTypePtr := flag.String("msmt-type", "tcp-throughput", "tcp-throughput or udp-throughput")
 
@@ -22,7 +22,7 @@ func main() {
 	fmt.Println("Client side")
 	fmt.Println("Control protocol:", *ctrlProtoPtr)
 	fmt.Println("Control addr:", *ctrlAddrPtr)
-	fmt.Println("Port:", *portPtr)
+	fmt.Println("Control Port:", *portPtr)
 	fmt.Println("Call-Size: ", *callSizePtr)
 	fmt.Println("Msmt-type: ", *msmtTypePtr)
 

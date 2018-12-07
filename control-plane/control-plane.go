@@ -3,7 +3,6 @@ package controlPlane
 import "fmt"
 import "os"
 import "errors"
-import "strconv"
 import "github.com/monfron/mapago/control-plane/ctrl/server-protocols"
 import "github.com/monfron/mapago/control-plane/ctrl/client-protocols"
 import "github.com/monfron/mapago/control-plane/ctrl/shared"
@@ -15,6 +14,7 @@ var ID string
 var ARCH string
 var OS string
 var MODULES string
+var CONFIG_FILE = "conf.json"
 
 func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 	var repDataObj *shared.DataObj
@@ -204,7 +204,7 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	reqDataObj.Measurement_delay = "666"
 	reqDataObj.Measurement_time_max = "666"
 
-	msmtObj := constructMeasurementObj("tcp-throughput", "module", "5", "7000")
+	msmtObj := constructMeasurementObj("tcp-throughput", "module")
 	reqDataObj.Measurement = *msmtObj
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
@@ -230,7 +230,7 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	reqDataObj.Measurement_delay = "666"
 	reqDataObj.Measurement_time_max = "666"
 
-	msmtObj := constructMeasurementObj("udp-throughput", "module", "1", "7000")
+	msmtObj := constructMeasurementObj("udp-throughput", "module")
 	reqDataObj.Measurement = *msmtObj
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
@@ -242,6 +242,17 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	fmt.Println("\nrepDataObj is: ", repDataObj)
 }
 
+func constructMeasurementObj(name string, msmtType string) *shared.MeasurementObj {
+	MsmtObj := new(shared.MeasurementObj)
+	MsmtObj.Name = name
+	MsmtObj.Type = msmtType
+
+	confObj := shared.ConstructConfiguration(CONFIG_FILE)
+	MsmtObj.Configuration = *confObj
+	return MsmtObj
+}
+
+/*
 func constructMeasurementObj(name string, msmtType string, workerNum string, port string) *shared.MeasurementObj {
 	MsmtObj := new(shared.MeasurementObj)
 	MsmtObj.Name = name
@@ -266,6 +277,7 @@ func constructConfiguration(workerNum string, port string) *shared.Configuration
 
 	return ConfObj
 }
+*/
 
 func RunUdpCtrlClient(addr string, port int, callSize int, msmtType string) {
 	udpObj := clientProtos.NewUdpObj("UdpConn1", addr, port, callSize)

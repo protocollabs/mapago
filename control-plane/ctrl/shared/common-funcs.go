@@ -9,6 +9,7 @@ import "strings"
 import "bytes"
 import "time"
 import "runtime"
+import "path/filepath"
 
 const DATE_FMT = "2006-01-02 15:04:05.000000000"
 
@@ -46,13 +47,52 @@ func ConvDataStructToJson(data *DataObj) []byte {
 
 	jsonB, err := json.Marshal(data)
 	if err != nil {
-		fmt.Printf("Cannot Marshal %s\n", err)
+		fmt.Printf("\nCannot Marshal %s\n", err)
 		os.Exit(1)
 	}
 
 	resB = append(resB, typeB...)
 	resB = append(resB, jsonB...)
 	return resB
+}
+
+func ConstructConfiguration(configDir string) *ConfigurationObj {
+	ConfObj := new(ConfigurationObj)
+
+	absPath, err := filepath.Abs(configDir)
+	if err != nil {
+		fmt.Printf("\nError while calc abs path: %s", err)
+		os.Exit(1)
+	}
+
+	_, err = os.Stat(absPath)
+	if os.IsNotExist(err) == true {
+		fmt.Printf("\nConfig not present! Use default one!")
+
+		ConfObj.Worker = "1"
+		ConfObj.Port = "7000"
+		ConfObj.Listen_addr = "127.0.0.1:"
+		ConfObj.Call_size = "64768"
+
+	} else {
+		fmt.Printf("\nConfig present! Decode it!")
+
+		fPtr, err := os.Open(absPath)
+		if err != nil {
+			fmt.Printf("\nError while opening measurement Config: %s", err)
+			os.Exit(1)
+		}
+
+		defer fPtr.Close()
+
+		decoderPtr := json.NewDecoder(fPtr)
+		err = decoderPtr.Decode(ConfObj)
+		if err != nil {
+			fmt.Printf("\nError while decoding: %s", err)
+			os.Exit(1)
+		}
+	}
+	return ConfObj
 }
 
 func ConstructId() string {
