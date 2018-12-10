@@ -71,7 +71,7 @@ func ConstructConfiguration(configDir string) *ConfigurationObj {
 
 		ConfObj.Worker = "1"
 		ConfObj.Port = "7000"
-		ConfObj.Listen_addr = "127.0.0.1:"
+		ConfObj.Listen_addr = "127.0.0.1"
 		ConfObj.Call_size = "64768"
 
 	} else {

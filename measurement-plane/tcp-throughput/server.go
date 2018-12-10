@@ -9,16 +9,14 @@ import "github.com/monfron/mapago/control-plane/ctrl/shared"
 
 var UPDATE_INTERVAL = 5
 
-/*
-TODO: POSSIBLE NAMING ISSUE: 1 PACKAGE (2 files: client.go, server.go)
-=> But both call something like NewTcpMsmt
-*/
-func NewTcpMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj) {
+func NewTcpMsmtServer(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj) {
 	var msmtData map[string]string
+	var countWorkers int
+	var accumulated uint64
+	numValCtr := 0
 	msmtResultCh := make(chan shared.ChMsmtResult)
 	goHeartbeatCh := make(chan bool)
 
-	// select call
 	for {
 		// POSSIBLE BLOCKING CAUSE: select blocks until one of its cases can run
 		select {
@@ -39,6 +37,8 @@ func NewTcpMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ct
 					os.Exit(1)
 				}
 
+				countWorkers = numWorkers
+
 				startPort, err := strconv.Atoi(msmtStartReq.Measurement.Configuration.Port)
 				if err != nil {
 					fmt.Printf("\nCannot convert port value: %s", err)
@@ -57,7 +57,7 @@ func NewTcpMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ct
 
 				for c := 1; c <= numWorkers; c++ {
 					fmt.Printf("\n\nStarting worker %d on port %d", c, startPort)
-					go tcp_server_worker(msmtResultCh, goHeartbeatCh, startPort, callSize, lAddr)
+					go tcpServerWorker(msmtResultCh, goHeartbeatCh, startPort, callSize, lAddr)
 					startPort++
 				}
 
@@ -102,27 +102,23 @@ func NewTcpMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ct
 			}
 
 		case msmtResult := <-msmtResultCh:
-			/*
-				- NOTE: the measurement Result could be sent
-				at first from trxer
-				- we could modify trxer to be a stand alone package
-				- func tcp_server(threads int, bufSize int) of trxer
-				is then basically our startTCP()
-				- within startTCP we access go trxer.tcp_server_worker(c chan<- measurement, port int, bufSize int) {
-				- this will send then stuff to msmtResult := <-msmtResultCh:
-			*/
-			fmt.Println("\nReceived Measurement result!!!")
-			fmt.Println("Received bytes: ", msmtResult.Bytes)
+			numValCtr += 1
+			accumulated += msmtResult.Bytes
 
+			if numValCtr == countWorkers {
+				fmt.Printf("\nGot reply from all %d workers", countWorkers)
+				mbyte_sec := accumulated / (1000000 * uint64(UPDATE_INTERVAL))
+				println("\nMByte/sec: ", mbyte_sec)
+				// start next measurement burst
+				accumulated = 0
+				numValCtr = 0
+			}
 		}
-
 	}
-
 }
 
-func tcp_server_worker(c chan<- shared.ChMsmtResult, goHeartbeatCh chan<- bool, port int, bufSize int, lAddr string) {
-	listen := lAddr + strconv.Itoa(port)
-	println("Listening on", listen)
+func tcpServerWorker(c chan<- shared.ChMsmtResult, goHeartbeatCh chan<- bool, port int, bufSize int, lAddr string) {
+	listen := lAddr + ":" + strconv.Itoa(port)
 	addr, error := net.ResolveTCPAddr("tcp", listen)
 	if error != nil {
 		fmt.Printf("Cannot parse \"%s\": %s\n", listen, error)
@@ -169,5 +165,4 @@ func tcp_server_worker(c chan<- shared.ChMsmtResult, goHeartbeatCh chan<- bool, 
 			bytes = 0
 		}
 	}
-
 }

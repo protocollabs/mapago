@@ -33,7 +33,7 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 			or we stay within the for loop and block on the channel
 			and cannot receive anything else
 		*/
-		go tcpThroughput.NewTcpMsmt(msmtCh, ctrlCh, msmtStartReq)
+		go tcpThroughput.NewTcpMsmtServer(msmtCh, ctrlCh, msmtStartReq)
 
 		/*
 			POSSIBLE BLOCKING CAUSE
