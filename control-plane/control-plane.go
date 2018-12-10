@@ -7,6 +7,7 @@ import "github.com/monfron/mapago/control-plane/ctrl/server-protocols"
 import "github.com/monfron/mapago/control-plane/ctrl/client-protocols"
 import "github.com/monfron/mapago/control-plane/ctrl/shared"
 import "github.com/monfron/mapago/management-plane"
+import "github.com/monfron/mapago/measurement-plane/tcp-throughput"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
@@ -212,8 +213,15 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 
 	repDataObj := tcpObj.StartMeasurement(reqJson)
 
-	// TODO: We have to save the received Measurement_id etc.
-	fmt.Println("\nrepDataObj is: ", repDataObj)
+	/*
+		TODO: We have to save the received Measurement_id etc.
+		in order to address the right server endpoint
+		=> do that with "repDataObj"
+	*/
+	fmt.Println("\n\nrepDataObj is: ", repDataObj)
+	fmt.Println("\nWE ARE NOW READY TO START WITH THE TCP MSMT")
+
+	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration)
 }
 
 // this starts the UDP throughput measurement
@@ -240,6 +248,7 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 
 	// TODO: We have to save the received Measurement_id etc.
 	fmt.Println("\nrepDataObj is: ", repDataObj)
+	fmt.Println("\nWE ARE NOW READY TO START WITH THE UDP MSMT")
 }
 
 func constructMeasurementObj(name string, msmtType string) *shared.MeasurementObj {
@@ -251,33 +260,6 @@ func constructMeasurementObj(name string, msmtType string) *shared.MeasurementOb
 	MsmtObj.Configuration = *confObj
 	return MsmtObj
 }
-
-/*
-func constructMeasurementObj(name string, msmtType string, workerNum string, port string) *shared.MeasurementObj {
-	MsmtObj := new(shared.MeasurementObj)
-	MsmtObj.Name = name
-	MsmtObj.Type = msmtType
-
-	confObj := constructConfiguration(workerNum, port)
-	MsmtObj.Configuration = *confObj
-
-	return MsmtObj
-}
-
-func constructConfiguration(workerNum string, port string) *shared.ConfigurationObj {
-	ConfObj := new(shared.ConfigurationObj)
-	// TODO: these are currently dummy params => useful params
-	ConfObj.Worker = workerNum
-	ConfObj.Port = port
-
-	// TODO: Hardcoded atm
-	// ConfObj.Listen_addr = "169.254.206.129:"
-	ConfObj.Listen_addr = "127.0.0.1:"
-	ConfObj.Call_size = strconv.Itoa(DEF_BUFFER_SIZE)
-
-	return ConfObj
-}
-*/
 
 func RunUdpCtrlClient(addr string, port int, callSize int, msmtType string) {
 	udpObj := clientProtos.NewUdpObj("UdpConn1", addr, port, callSize)
