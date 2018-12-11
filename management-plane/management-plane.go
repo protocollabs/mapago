@@ -9,7 +9,7 @@ import "github.com/monfron/mapago/control-plane/ctrl/shared"
 import "github.com/monfron/mapago/measurement-plane/tcp-throughput"
 import "github.com/monfron/mapago/measurement-plane/udp-throughput"
 
-var msmtStorage map[string]chan shared.ChMgmt2Msmt
+var msmtStorage map[string]*shared.MsmtStorageEntry
 var mapInited = false
 
 func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj, cltAddr string) {
@@ -20,17 +20,22 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 		msmtCh := make(chan shared.ChMgmt2Msmt)
 
 		if mapInited == false {
-			msmtStorage = make(map[string]chan shared.ChMgmt2Msmt)
+			msmtStorage = make(map[string]*shared.MsmtStorageEntry)
 			mapInited = true
 		}
-
-		msmtStorage[msmtId] = msmtCh
-		fmt.Println("\nmsmtStorage content: ", msmtStorage)
 
 		tcpMsmtObj := tcpThroughput.NewTcpMsmtObj(msmtCh, ctrlCh, msmtStartReq, msmtId)
 		fmt.Println("\nConstructor constructed tcp msmt object: ", tcpMsmtObj)
 
-		// TODO: tcpThroughput.Start() etc.
+		// TODO: save in instance + channel in msmtStorage
+		msmtEntry := new(shared.MsmtStorageEntry)
+		msmtEntry.MsmtCh = msmtCh
+		msmtEntry.MsmtObj = tcpMsmtObj
+		msmtStorage[msmtId] = msmtEntry
+
+		fmt.Println("\nmsmtStorage content: ", msmtStorage)
+
+		tcpMsmtObj.Start()
 
 	case "udp-throughput":
 		// TODO: MOVE COMMON STUFF UP
@@ -38,11 +43,14 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 		msmtCh := make(chan shared.ChMgmt2Msmt)
 
 		if mapInited == false {
-			msmtStorage = make(map[string]chan shared.ChMgmt2Msmt)
+			msmtStorage = make(map[string]*shared.MsmtStorageEntry)
 			mapInited = true
 		}
 
-		msmtStorage[msmtId] = msmtCh
+		msmtEntry := new(shared.MsmtStorageEntry)
+		msmtEntry.MsmtCh = msmtCh
+		// cannot be used ATM : WIP msmtEntry.MsmtObj = nil
+		msmtStorage[msmtId] = msmtEntry
 		fmt.Println("\nmsmtStorage content: ", msmtStorage)
 
 		/*

@@ -21,7 +21,7 @@ type TcpMsmtObj struct {
 		- this attribute can be used by start() to RECEIVE result from TcpServerWorker
 		- i.e. => select => msmtResult := <-msmtResultCh
 	*/
-	msmtResultCh chan<- shared.ChMsmtResult
+	msmtResultCh chan shared.ChMsmtResult
 
 	/*
 		- this attribute can be used by start() to RECEIVE cmd from managementplane
@@ -170,4 +170,46 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(resCh chan<- shared.ChMsmtResult, goH
 			bytes = 0
 		}
 	}
+}
+
+func (tcpMsmt *TcpMsmtObj) Start() {
+	numValCtr := 0
+	var accumulated uint64
+
+	go func() {
+		for {
+			// POSSIBLE BLOCKING CAUSE: select blocks until one of its cases can run
+			select {
+			case mgmtCmd := <-tcpMsmt.msmtMgmt2MsmtCh:
+				fmt.Println("\nReceived Management Command: ", mgmtCmd.Cmd)
+
+				switch mgmtCmd.Cmd {
+
+				case "Msmt_close":
+					fmt.Println("\nTODO: We have to close TCP msmt module!")
+
+				case "Msmt_info":
+					fmt.Println("\nTODO: We have to send TCP msmt info!")
+
+				default:
+					fmt.Printf("Unknown measurement module")
+					os.Exit(1)
+				}
+
+			case msmtResult := <-tcpMsmt.msmtResultCh:
+				numValCtr += 1
+				accumulated += msmtResult.Bytes
+
+				if numValCtr == tcpMsmt.numStreams {
+					fmt.Printf("\nGot reply from all %d workers", tcpMsmt.numStreams)
+					mbyte_sec := accumulated / (1000000 * uint64(UPDATE_INTERVAL))
+					println("\nMByte/sec: ", mbyte_sec)
+					// start next measurement burst
+					accumulated = 0
+					numValCtr = 0
+				}
+			}
+		}
+
+	}()
 }

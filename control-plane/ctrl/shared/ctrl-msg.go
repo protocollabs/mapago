@@ -54,6 +54,12 @@ type ChMsmtResult struct {
 	Time  float64
 }
 
+type MsmtStorageEntry struct {
+	MsmtCh chan ChMgmt2Msmt
+	// this could be: tcpMsmtObj, udpMsmtObj, quicMsmtObj
+	MsmtObj interface{}
+}
+
 type DataObj struct {
 	Type                 uint64         `json:",omitempty"`
 	Id                   string         `json:",omitempty"`
