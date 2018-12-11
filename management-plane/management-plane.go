@@ -15,7 +15,7 @@ var mapInited = false
 func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj, cltAddr string) {
 	switch msmtStartReq.Measurement.Name {
 	case "tcp-throughput":
-		// TODO: MOVE COMMON STUFF UP
+		// TODO: differ in constructing msmtId
 		msmtId := constructMsmtId(cltAddr)
 		msmtCh := make(chan shared.ChMgmt2Msmt)
 
@@ -27,25 +27,10 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 		msmtStorage[msmtId] = msmtCh
 		fmt.Println("\nmsmtStorage content: ", msmtStorage)
 
-		/*
-			POSSIBLE BLOCKING CAUSE
-			we have to call it via goroutine asynchronously
-			or we stay within the for loop and block on the channel
-			and cannot receive anything else
-		*/
-		go tcpThroughput.NewTcpMsmtServer(msmtCh, ctrlCh, msmtStartReq)
+		tcpMsmtObj := tcpThroughput.NewTcpMsmtObj(msmtCh, ctrlCh, msmtStartReq, msmtId)
+		fmt.Println("\nConstructor constructed tcp msmt object: ", tcpMsmtObj)
 
-		/*
-			POSSIBLE BLOCKING CAUSE
-			send blocks until corresponding read is called
-			PROBLEM: this function is blocked => the callee is blocked aswell
-			=> connClose() and HandleConn() cannot be called => no further requests
-		*/
-
-		mgmtCmd := new(shared.ChMgmt2Msmt)
-		mgmtCmd.Cmd = "Msmt_start"
-		mgmtCmd.MsmtId = msmtId
-		msmtCh <- *mgmtCmd
+		// TODO: tcpThroughput.Start() etc.
 
 	case "udp-throughput":
 		// TODO: MOVE COMMON STUFF UP

@@ -75,6 +75,7 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 					POSSIBLE BLOCKING CAUSE
 				*/
 				msmtReply := <-recvCh
+
 				// at this point all systems are started
 				repDataObj = constructMsmtStartReply(reqDataObj, msmtReply)
 				json := shared.ConvDataStructToJson(repDataObj)
