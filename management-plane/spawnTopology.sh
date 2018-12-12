@@ -1,98 +1,31 @@
-#!/bin/sh
+ #!/bin/sh
 
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol udp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol tcp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol udp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol tcp &
 
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol udp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol tcp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol udp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol tcp &
 
 
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol udp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol tcp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol udp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol tcp &
+
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol udp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol tcp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol udp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol tcp &
 
 
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-
-
-
-
-
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol udp &
-~/GoProgramming/bin/mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp &
-
-
-
-
-
-
-
-
-
-
-
-
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol udp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol tcp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol udp &
+./../../../../../bin/mapago-client -ctrl-addr 127.0.0.1 -ctrl-protocol tcp &
 
 
 wait
