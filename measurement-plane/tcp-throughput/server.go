@@ -62,6 +62,7 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 		os.Exit(1)
 	}
 
+	// TODO: this should be the id sent to client
 	tcpMsmt.msmtId = msmtId
 	tcpMsmt.listenAddr = msmtStartReq.Measurement.Configuration.Listen_addr
 	tcpMsmt.msmtResultCh = resultCh
@@ -210,6 +211,5 @@ func (tcpMsmt *TcpMsmtObj) Start() {
 				}
 			}
 		}
-
 	}()
 }

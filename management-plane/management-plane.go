@@ -24,10 +24,10 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 			mapInited = true
 		}
 
+		// TODO: the MsmtObj should get the MsmtId which will be sent to Client
+		// i.e. only the rand
 		tcpMsmtObj := tcpThroughput.NewTcpMsmtObj(msmtCh, ctrlCh, msmtStartReq, msmtId)
-		fmt.Println("\nConstructor constructed tcp msmt object: ", tcpMsmtObj)
 
-		// TODO: save in instance + channel in msmtStorage
 		msmtEntry := new(shared.MsmtStorageEntry)
 		msmtEntry.MsmtCh = msmtCh
 		msmtEntry.MsmtObj = tcpMsmtObj
