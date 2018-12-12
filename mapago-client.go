@@ -12,7 +12,9 @@ import "github.com/monfron/mapago/control-plane/ctrl/shared"
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
 var CONFIG_FILE = "conf.json"
-
+// content "MID":"msmt_type"
+var msmtIdStorage map[string]string
+var mapInited = false
 
 func main() {
 	ctrlProtoPtr := flag.String("ctrl-protocol", "tcp", "tcp, udp or udp_mcast")
@@ -101,15 +103,16 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
 
 	repDataObj := tcpObj.StartMeasurement(reqJson)
+	fmt.Println("\n\nClient received (TCP) Measurement_Start_reply: ", repDataObj)
 
-	/*
-		TODO: We have to save the received Measurement_id etc.
-		in order to address the right server endpoint
-		=> do that with "repDataObj"
-	*/
-	fmt.Println("\n\nClient received Measurement_Start_reply: ", repDataObj)
+	if mapInited == false {
+		msmtIdStorage = make(map[string]string)
+		mapInited = true
+	}
+
+	msmtIdStorage[repDataObj.Measurement_id] = "tcp-throughput"
+
 	fmt.Println("\nWE ARE NOW READY TO START WITH THE TCP MSMT")
-
 	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration)
 }
 
@@ -134,10 +137,19 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
 
 	repDataObj := tcpObj.StartMeasurement(reqJson)
+	fmt.Println("\n\nClient received (UDP) Measurement_Start_reply: ", repDataObj)
 
 	// TODO: We have to save the received Measurement_id etc.
-	fmt.Println("\nrepDataObj is: ", repDataObj)
+	if mapInited == false {
+		msmtIdStorage = make(map[string]string)
+		mapInited = true
+	}
+
+	msmtIdStorage[repDataObj.Measurement_id] = "udp-throughput"
 	fmt.Println("\nWE ARE NOW READY TO START WITH THE UDP MSMT")
+
+	// TODO: UdpThroughput call
+
 }
 
 func constructMeasurementObj(name string, msmtType string) *shared.MeasurementObj {
