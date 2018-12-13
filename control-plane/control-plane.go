@@ -51,8 +51,9 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 				// the UDP (server) socket is untouched
 				request.ConnObj.CloseConn()
 
-				// Be ready for receiving another control message via TCP...
-				go tcpObj.HandleTcpConn(ch)
+				// DISCUSS: we dont need go tcpObj.HandleTcpConn(ch)
+				tcpObj.HandleTcpConn(ch)
+
 			}()
 
 		case shared.INFO_REPLY:
@@ -78,7 +79,9 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 				request.ConnObj.WriteAnswer(json)
 
 				request.ConnObj.CloseConn()
-				go tcpObj.HandleTcpConn(ch)
+				// DISCUSS: we dont need go tcpObj.HandleTcpConn(ch)
+				tcpObj.HandleTcpConn(ch)
+
 			}()
 
 		// interaction needed
