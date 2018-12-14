@@ -15,6 +15,7 @@ var MODULES string
 
 func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 	var repDataObj *shared.DataObj
+	var recvChStorage map[string]chan shared.ChMsmt2Ctrl
 
 	// construct apriori
 	ID = shared.ConstructId()
@@ -23,6 +24,7 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 	MODULES = shared.ConvMapToStr(supportedModules())
 
 	ch := make(chan shared.ChResult)
+	recvChStorage = make(map[string]chan shared.ChMsmt2Ctrl)
 
 	tcpObj := serverProtos.NewTcpObj("TcpConn", lUcAddr, port, callSize)
 	tcpObj.Start(ch)
@@ -64,7 +66,18 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 			go func() {
 				fmt.Println("\n------------- Measurement Start Request -------------")
 
+				/*
+					DISCUSS:
+					- recvCh is a local variable saved on the stack of this goroutine
+					- using this recvCh we have to also receive the reply from the *associated*
+					msmt module when for example a Msmt Stop Req or Msmt Info Req
+					- i.e. the recvCh has to be available in the scopes of the other goroutines aswell
+					- so we cannot say we store this recvCh everytime in a more "global" variable
+					or the value is overwritten everytime a new Msmt_start_req comes in
+					- we could say instead we store the recvCh in a map, indexed by the msmt_id (currenetly done)
+				*/
 				recvCh := make(chan shared.ChMsmt2Ctrl)
+
 				clientIp := request.ConnObj.DetectRemoteAddr()
 				managementPlane.HandleMsmtStartReq(recvCh, reqDataObj, clientIp.String())
 
@@ -75,6 +88,10 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 
 				// at this point all systems are started
 				repDataObj = constructMsmtStartReply(reqDataObj, msmtReply)
+
+				recvChStorage[repDataObj.Measurement_id] = recvCh
+				fmt.Println("\nRecvChStorage: ", recvChStorage)
+
 				json := shared.ConvDataStructToJson(repDataObj)
 				request.ConnObj.WriteAnswer(json)
 
@@ -86,9 +103,24 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 
 		// interaction needed
 		case shared.MEASUREMENT_STOP_REQUEST:
-			fmt.Println("\n!!!I received a MSMT_STOP_REQ: I cannot handle that atm!")
+			fmt.Println("\n!!!I received a MSMT_STOP_REQ: WIP")
 
-			// TODO: perform handling of msmt_stop_req
+			recvCh, exists := recvChStorage[reqDataObj.Measurement_id]
+			if exists == false {
+				fmt.Printf("\nrecvChEntry NOT in storage")
+				os.Exit(1)
+			}
+
+			managementPlane.HandleMsmtStopReq(reqDataObj.Measurement_id)
+
+			msmtReply := <-recvCh
+			fmt.Println("\nMsmt reply is: ", msmtReply)
+
+			// TODO4: constructMsmstStopReply
+
+			// TODO5: Convert to JSON
+
+			// TODO6: Write answer
 
 			// be ready to receive other requests
 			request.ConnObj.CloseConn()

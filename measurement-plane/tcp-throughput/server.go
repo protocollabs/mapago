@@ -176,6 +176,7 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(resCh chan<- shared.ChMsmtResult, goH
 func (tcpMsmt *TcpMsmtObj) Start() {
 	numValCtr := 0
 	var accumulated uint64
+	var msmtData map[string]string
 
 	go func() {
 		for {
@@ -187,7 +188,23 @@ func (tcpMsmt *TcpMsmtObj) Start() {
 				switch mgmtCmd.Cmd {
 
 				case "Msmt_close":
-					fmt.Println("\nTODO: We have to close TCP msmt module!")
+					fmt.Println("\nWe have to close TCP msmt module!")
+					/*
+						TODO10: we have to close the connection from here
+						i.e. we use a select in the tcpServerWorker()
+						with a channel we can communicate with that
+					*/
+
+					// TODO11: when executed => send information to ctrl-plane
+					// send reply to control plane
+					msmtReply := new(shared.ChMsmt2Ctrl)
+					msmtReply.Status = "ok"
+
+					msmtData = make(map[string]string)
+					msmtData["msmtId"] = tcpMsmt.msmtId
+					msmtData["msg"] = "all modules closed"
+					msmtReply.Data = msmtData
+					tcpMsmt.msmt2CtrlCh <- *msmtReply
 
 				case "Msmt_info":
 					fmt.Println("\nTODO: We have to send TCP msmt info!")

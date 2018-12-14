@@ -92,3 +92,19 @@ func constructMsmtId(cltAddr string) string {
 
 	return msmtId
 }
+
+func HandleMsmtStopReq(msmtId string) {
+	fmt.Printf("\nMsmtStartReq called!!")
+
+	msmtEntry, exists := msmtStorage[msmtId]
+	if exists == false {
+		fmt.Printf("\nmsmtEntry for msmtId NOT in storage")
+		os.Exit(1)
+	}
+
+	// send message to object to close conn
+	mgmtCmd := new(shared.ChMgmt2Msmt)
+	mgmtCmd.Cmd = "Msmt_close"
+	mgmtCmd.MsmtId = msmtId
+	msmtEntry.MsmtCh <- *mgmtCmd
+}

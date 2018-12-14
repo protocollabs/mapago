@@ -172,7 +172,7 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup) {
 				NOTE: execute this synchronously
 				After the MsmtStopReply is received, we know
 				the server understood our Request and we can
-				terminate the connections
+				terminate the connections aswell
 				*/
 				sendTcpMsmtStopRequest(addr, port, callSize)
 
