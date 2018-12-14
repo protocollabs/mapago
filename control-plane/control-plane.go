@@ -86,15 +86,21 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 
 		// interaction needed
 		case shared.MEASUREMENT_STOP_REQUEST:
-			fmt.Println("Construct MEASUREMENT_STOP_REP")
+			fmt.Println("\n!!!I received a MSMT_STOP_REQ: I cannot handle that atm!")
+
+			// TODO: perform handling of msmt_stop_req
+
+			// be ready to receive other requests
+			request.ConnObj.CloseConn()
+			tcpObj.HandleTcpConn(ch)
 
 		// interaction needed
 		case shared.MEASUREMENT_INFO_REQUEST:
-			fmt.Println("Construct MEASUREMENT_INFO_REP")
+			fmt.Println("\nConstruct MEASUREMENT_INFO_REP")
 
 		// not handled atm
 		case shared.TIME_DIFF_REQUEST:
-			fmt.Println("Construct TIME_DIFF_REP")
+			fmt.Println("\nConstruct TIME_DIFF_REP")
 
 		// not handled atm
 		case shared.WARNING_ERR_MSG:

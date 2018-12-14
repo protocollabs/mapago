@@ -120,7 +120,54 @@ func (tcp *TcpObj) StartMeasurement(jsonData []byte) *shared.DataObj {
 
 		// TODO
 		if repDataObj.Type == shared.MEASUREMENT_START_REPLY {
-			fmt.Printf("\nClient received an Measurement_Start_Reply!!!")
+			fmt.Printf("\nClient received an TCP Measurement_Start_Reply!!!")
+			break
+		}
+	}
+	return repDataObj
+}
+
+func (tcp *TcpObj) StopMeasurement(jsonData []byte) *shared.DataObj {
+	var repDataObj *shared.DataObj
+
+	fmt.Println("TcpObj StopMeasurement() called")
+	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
+
+	rAddr := tcp.connAddr + ":" + strconv.Itoa(tcp.connPort)
+	rTcpAddr, err := net.ResolveTCPAddr("tcp", rAddr)
+	if err != nil {
+		fmt.Printf("Cannot parse \"%s\": %s\n", rAddr, err)
+		os.Exit(1)
+	}
+
+	tcpConn, err := net.DialTCP("tcp", nil, rTcpAddr)
+	if err != nil {
+		fmt.Printf("Cannot dial \"%s\": %s\n", rAddr, err)
+		os.Exit(1)
+	}
+
+	tcpConnObj := NewTcpConnObj(tcpConn)
+	defer tcpConnObj.connSock.Close()
+
+	for {
+		_, err := tcpConnObj.connSock.Write(jsonData)
+		if err != nil {
+			fmt.Printf("Cannot send!!! %s\n", err)
+			os.Exit(1)
+		}
+
+		// NOTE: We will block here until we get a msmst_stop_reply
+		bytes, err := tcpConnObj.connSock.Read(buf)
+		if err != nil {
+			fmt.Printf("Cannot read!!!! msg: %s\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("\nClient read num bytes: ", bytes)
+		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
+
+		if repDataObj.Type == shared.MEASUREMENT_STOP_REPLY {
+			fmt.Printf("\nClient received an TCP Measurement_Stop_Reply!!!")
 			break
 		}
 	}

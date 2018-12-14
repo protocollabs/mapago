@@ -168,6 +168,12 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup) {
 				}
 
 				// 2. create msmt_stop_req and send
+				/* 
+				NOTE: execute this synchronously
+				After the MsmtStopReply is received, we know
+				the server understood our Request and we can
+				terminate the connections
+				*/
 				sendTcpMsmtStopRequest(addr, port, callSize)
 
 
@@ -189,7 +195,7 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup) {
 // this starts the TCP throughput measurement
 // underlying control channel is TCP based
 func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
-	// tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtStopReqConn", addr, port, callSize)
+	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtStopReqConn", addr, port, callSize)
 
 	// TODO: build json "dummy" message
 	reqDataObj := new(shared.DataObj)
@@ -213,7 +219,8 @@ func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
 
-	// TODO: Perform sending: 	repDataObj := tcpObj.StopMeasurement(reqJson)
+	repDataObj := tcpObj.StopMeasurement(reqJson)
+	fmt.Println("\n\nClient received (TCP) Measurement_Stop_reply: ", repDataObj)
 }
 
 
