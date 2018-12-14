@@ -89,6 +89,7 @@ type MeasurementObj struct {
 	Name          string           `json:",omitempty"`
 	Type          string           `json:",omitempty"`
 	Configuration ConfigurationObj `json:",omitempty"`
+	// TODO: Include the actual measurement result
 }
 
 type ConfigurationObj struct {

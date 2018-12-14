@@ -194,9 +194,6 @@ func (tcpMsmt *TcpMsmtObj) Start() {
 						i.e. we use a select in the tcpServerWorker()
 						with a channel we can communicate with that
 					*/
-
-					// TODO11: when executed => send information to ctrl-plane
-					// send reply to control plane
 					msmtReply := new(shared.ChMsmt2Ctrl)
 					msmtReply.Status = "ok"
 
@@ -204,6 +201,8 @@ func (tcpMsmt *TcpMsmtObj) Start() {
 					msmtData["msmtId"] = tcpMsmt.msmtId
 					msmtData["msg"] = "all modules closed"
 					msmtReply.Data = msmtData
+
+					// TODO: we have to attach the Measurement Data
 					tcpMsmt.msmt2CtrlCh <- *msmtReply
 
 				case "Msmt_info":

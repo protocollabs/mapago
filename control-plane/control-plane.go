@@ -103,28 +103,31 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 
 		// interaction needed
 		case shared.MEASUREMENT_STOP_REQUEST:
-			fmt.Println("\n!!!I received a MSMT_STOP_REQ: WIP")
+			go func() {
+				fmt.Println("\n!!!I received a MSMT_STOP_REQ: WIP")
 
-			recvCh, exists := recvChStorage[reqDataObj.Measurement_id]
-			if exists == false {
-				fmt.Printf("\nrecvChEntry NOT in storage")
-				os.Exit(1)
-			}
+				recvCh, exists := recvChStorage[reqDataObj.Measurement_id]
+				if exists == false {
+					fmt.Printf("\nrecvChEntry NOT in storage")
+					os.Exit(1)
+				}
 
-			managementPlane.HandleMsmtStopReq(reqDataObj.Measurement_id)
+				managementPlane.HandleMsmtStopReq(reqDataObj.Measurement_id)
 
-			msmtReply := <-recvCh
-			fmt.Println("\nMsmt reply is: ", msmtReply)
+				msmtReply := <-recvCh
+				fmt.Println("\nMsmt reply is: ", msmtReply)
 
-			// TODO4: constructMsmstStopReply
+				repDataObj = constructMsmtStopReply(reqDataObj, msmtReply)
 
-			// TODO5: Convert to JSON
+				json := shared.ConvDataStructToJson(repDataObj)
+				request.ConnObj.WriteAnswer(json)
 
-			// TODO6: Write answer
+				// Remove recvCh from recvChStorage
 
-			// be ready to receive other requests
-			request.ConnObj.CloseConn()
-			tcpObj.HandleTcpConn(ch)
+				// be ready to receive other requests
+				request.ConnObj.CloseConn()
+				tcpObj.HandleTcpConn(ch)
+			}()
 
 		// interaction needed
 		case shared.MEASUREMENT_INFO_REQUEST:
@@ -181,6 +184,28 @@ func constructMsmtStartReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2C
 
 	repDataObj.Measurement_id = msmtData["msmtId"]
 	repDataObj.Message = msmtData["msg"]
+
+	return repDataObj
+}
+
+func constructMsmtStopReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2Ctrl) *shared.DataObj {
+	fmt.Println("\nConstructing MSMT_START_REP")
+
+	repDataObj := new(shared.DataObj)
+	repDataObj.Type = shared.MEASUREMENT_STOP_REPLY
+	repDataObj.Status = msmtRep.Status
+	repDataObj.Id = ID
+	repDataObj.Seq_rp = reqDataObj.Seq
+
+	msmtData, ok := msmtRep.Data.(map[string]string)
+	if ok == false {
+		fmt.Printf("Type assertion failed: Looking for map %t", ok)
+		os.Exit(1)
+	}
+
+	repDataObj.Measurement_id = msmtData["msmtId"]
+	repDataObj.Message = msmtData["msg"]
+	// TODO: Include the final measurement result
 
 	return repDataObj
 }
