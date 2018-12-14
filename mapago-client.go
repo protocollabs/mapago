@@ -20,7 +20,10 @@ var MSMT_INFO_INTERVAL = 2
 var MSMT_STOP_INTERVAL = 10
 // content "MID":"msmt_type"
 var msmtIdStorage map[string]string
-var mapInited = false
+// Content "ID":"Hostname=UUID"
+var idStorage map[string]string
+var msmtStorageInited = false
+var idStorageInited = false
 
 func main() {
 	ctrlProtoPtr := flag.String("ctrl-protocol", "tcp", "tcp, udp or udp_mcast")
@@ -54,15 +57,23 @@ func main() {
 func runTcpCtrlClient(addr string, port int, callSize int, msmtType string) {
 	tcpObj := clientProtos.NewTcpObj("TcpDiscoveryConn", addr, port, callSize)
 
+	if idStorageInited == false {
+		idStorage = make(map[string]string)
+		idStorageInited = true
+	}
+
 	// TODO: build json "dummy" message
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.INFO_REQUEST
-	reqDataObj.Id = shared.ConstructId()
+
+	idStorage["tcp-id"] = shared.ConstructId()
+	reqDataObj.Id = idStorage["tcp-id"]
+
 	reqDataObj.Seq = "0"
 	reqDataObj.Ts = shared.ConvCurrDateToStr()
 	reqDataObj.Secret = "fancySecret"
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
-	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
+	// debug fmt.Printf("\ninfo request JSON is: % s", reqJson)
 
 	repDataObj := tcpObj.StartDiscovery(reqJson)
 	fmt.Println("\nClient received Info_request: ", repDataObj)
@@ -86,12 +97,18 @@ func runTcpCtrlClient(addr string, port int, callSize int, msmtType string) {
 // underlying control channel is TCP based
 func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	var wg sync.WaitGroup
-	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtConn", addr, port, callSize)
+	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtStartReqConn", addr, port, callSize)
 
 	// TODO: build json "dummy" message
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
-	reqDataObj.Id = shared.ConstructId()
+		
+	if val, ok := idStorage["tcp-id"]; ok {
+		reqDataObj.Id = val
+	} else {
+		fmt.Println("\nFound not the id")
+	}
+	
 	reqDataObj.Seq = "1"
 	reqDataObj.Secret = "fancySecret"
 	reqDataObj.Measurement_delay = "666"
@@ -101,17 +118,17 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	reqDataObj.Measurement = *msmtObj
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
-	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
+	// debug fmt.Printf("\nmsmt start request JSON is: % s", reqJson)
 
 	repDataObj := tcpObj.StartMeasurement(reqJson)
 	fmt.Println("\n\nClient received (TCP) Measurement_Start_reply: ", repDataObj)
 
-	if mapInited == false {
+	if msmtStorageInited == false {
 		msmtIdStorage = make(map[string]string)
-		mapInited = true
+		msmtStorageInited = true
 	}
 
-	msmtIdStorage[repDataObj.Measurement_id] = "tcp-throughput"
+	msmtIdStorage["tcp-throughput1"] = repDataObj.Measurement_id
 
 	// debug fmt.Println("\nWE ARE NOW READY TO START WITH THE TCP MSMT")
 
@@ -119,7 +136,14 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 
 	fmt.Println("\n\n---------- TCP MSMT is now running ---------- ")
 
-	// TODO: Move that (when everything is rdy) to a separate func
+	manageTcpMsmt(addr, port, callSize, &wg)
+}
+
+
+func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup) {
+	tMsmtInfoReq := time.NewTimer(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
+	tMsmtStopReq := time.NewTimer(time.Duration(MSMT_STOP_INTERVAL) * time.Second)
+
 	// TODO: we dont need a goroutine here imo: we dont execute anything else
 	go func() {
 		for {
@@ -135,13 +159,20 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 			case <-tMsmtStopReq.C:
 				fmt.Println("\nIts time to finish the measurement! close all conns")
 			
-				// stop the msmt_info_timer: we do not need anymore values
+				// 1. stop the msmt_info_timer: we do not need anymore values
 				timerStopped := tMsmtInfoReq.Stop()
 				if timerStopped {
 					fmt.Printf("\nCall stopped msmt_info_req Timer!")
 				} else {
 					fmt.Printf("\nmsmt_info_req Timer already expired!")
 				}
+
+				// 2. create msmt_stop_req and send
+				sendTcpMsmtStopRequest(addr, port, callSize)
+
+
+
+
 
 				/*
 				TODO: implement Msmt_stop_req logic
@@ -154,6 +185,38 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	fmt.Println("\nTcp workers are now finished")
 }
 
+
+// this starts the TCP throughput measurement
+// underlying control channel is TCP based
+func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
+	// tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtStopReqConn", addr, port, callSize)
+
+	// TODO: build json "dummy" message
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.MEASUREMENT_STOP_REQUEST
+	
+	if val, ok := idStorage["tcp-id"]; ok {
+		reqDataObj.Id = val
+	} else {
+		fmt.Println("\nFound not the id")
+	}
+	
+	reqDataObj.Seq = "2"
+	reqDataObj.Secret = "fancySecret"
+
+	if val, ok := msmtIdStorage["tcp-throughput1"]; ok {
+		reqDataObj.Measurement_id = val
+	} else {
+		fmt.Println("\nFound not the measurement id for tcp throughput")
+	}
+
+	reqJson := shared.ConvDataStructToJson(reqDataObj)
+	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
+
+	// TODO: Perform sending: 	repDataObj := tcpObj.StopMeasurement(reqJson)
+}
+
+
 // this starts the UDP throughput measurement
 // underlying control channel is TCP based
 func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
@@ -162,7 +225,13 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	// TODO: build json "dummy" message
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
-	reqDataObj.Id = shared.ConstructId()
+	
+	if val, ok := idStorage["udp-id"]; ok {
+		reqDataObj.Id = val
+	} else {
+		fmt.Println("\nFound not the id")
+	}
+
 	reqDataObj.Seq = "1"
 	reqDataObj.Secret = "fancySecret"
 	reqDataObj.Measurement_delay = "666"
@@ -177,9 +246,9 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	repDataObj := tcpObj.StartMeasurement(reqJson)
 	fmt.Println("\n\nClient received (UDP) Measurement_Start_reply: ", repDataObj)
 
-	if mapInited == false {
+	if msmtStorageInited == false {
 		msmtIdStorage = make(map[string]string)
-		mapInited = true
+		msmtStorageInited = true
 	}
 
 	msmtIdStorage[repDataObj.Measurement_id] = "udp-throughput"
@@ -202,10 +271,18 @@ func constructMeasurementObj(name string, msmtType string) *shared.MeasurementOb
 func runUdpCtrlClient(addr string, port int, callSize int, msmtType string) {
 	udpObj := clientProtos.NewUdpObj("UdpConn1", addr, port, callSize)
 
+	if idStorageInited == false {
+		idStorage = make(map[string]string)
+		idStorageInited = true
+	}
+
 	// TODO: build json "dummy" message
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.INFO_REQUEST
-	reqDataObj.Id = shared.ConstructId()
+
+	idStorage["udp-id"] = shared.ConstructId()
+	reqDataObj.Id = idStorage["udp-id"]
+
 	reqDataObj.Seq = "0"
 	reqDataObj.Ts = shared.ConvCurrDateToStr()
 	reqDataObj.Secret = "fancySecret"
@@ -231,10 +308,18 @@ func runUdpCtrlClient(addr string, port int, callSize int, msmtType string) {
 func runUdpMcastCtrlClient(addr string, port int, callSize int, msmtType string) {
 	udpMcObj := clientProtos.NewUdpMcObj("UdpMcConn1", addr, port, callSize)
 
+	if idStorageInited == false {
+		idStorage = make(map[string]string)
+		idStorageInited = true
+	}
+
 	// TODO: build json "dummy" message
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.INFO_REQUEST
-	reqDataObj.Id = shared.ConstructId()
+
+	idStorage["mcast-id"] = shared.ConstructId()
+	reqDataObj.Id = idStorage["mcast-id"]
+
 	reqDataObj.Seq = "0"
 	reqDataObj.Ts = shared.ConvCurrDateToStr()
 	reqDataObj.Secret = "fancySecret"
