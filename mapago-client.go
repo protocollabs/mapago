@@ -6,10 +6,10 @@ import "errors"
 import "os"
 import "sync"
 import "time"
+import "strconv"
 import "github.com/monfron/mapago/control-plane/ctrl/client-protocols"
 import "github.com/monfron/mapago/measurement-plane/tcp-throughput"
 import "github.com/monfron/mapago/control-plane/ctrl/shared"
-
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
@@ -62,7 +62,7 @@ func runTcpCtrlClient(addr string, port int, callSize int, msmtType string) {
 		idStorageInited = true
 	}
 
-	// TODO: build json "dummy" message
+	// TODO: Still some fields are HARDCODED
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.INFO_REQUEST
 
@@ -97,9 +97,10 @@ func runTcpCtrlClient(addr string, port int, callSize int, msmtType string) {
 // underlying control channel is TCP based
 func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	var wg sync.WaitGroup
+	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtStartReqConn", addr, port, callSize)
 
-	// TODO: build json "dummy" message
+	// TODO: Still some fields are HARDCODED
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
 		
@@ -116,6 +117,13 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 
 	msmtObj := constructMeasurementObj("tcp-throughput", "module")
 	reqDataObj.Measurement = *msmtObj
+	
+	numWorker, err := strconv.Atoi(reqDataObj.Measurement.Configuration.Worker)
+	if err != nil {
+		fmt.Printf("Could not parse Workers: %s\n", err)
+		os.Exit(1)
+	}
+	
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	// debug fmt.Printf("\nmsmt start request JSON is: % s", reqJson)
@@ -131,68 +139,54 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	msmtIdStorage["tcp-throughput1"] = repDataObj.Measurement_id
 
 	// debug fmt.Println("\nWE ARE NOW READY TO START WITH THE TCP MSMT")
-
-	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, &wg)
+	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, &wg, closeConnCh)
 
 	fmt.Println("\n\n---------- TCP MSMT is now running ---------- ")
-
-	manageTcpMsmt(addr, port, callSize, &wg)
+	
+	manageTcpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
 }
 
 
-func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup) {
+func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
 	tMsmtInfoReq := time.NewTimer(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
+	/* TODO: nicht zeitgetriggert sonder daten getriggert
+	wenn letzte daten erhalten => close conns
+	würde Probleme geben bei starker packet verlustrate
+	wir sagen 10s und während dessen empfangen wir nichts
+	dann bauen wir schon verbindung ab => client ist immer noch im retransmit
+	*/
 	tMsmtStopReq := time.NewTimer(time.Duration(MSMT_STOP_INTERVAL) * time.Second)
 
-	// TODO: we dont need a goroutine here imo: we dont execute anything else
-	go func() {
-		for {
-			select {
-			case <-tMsmtInfoReq.C:
-				fmt.Println("\nIts time to send a Msmt_Info_Req")
-				/*
-				TODO: implement Msmt_info_req logic
-				*/
+	for {
+		select {
+		case <-tMsmtInfoReq.C:
+			fmt.Println("\nIts time to send a Msmt_Info_Req")
+			/*
+			- TODO: implement Msmt_info_req logic
+			- i.e. construct Msmt_info_Req Message
+			- send an wait for reply 
+			*/
+			tMsmtInfoReq.Reset(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
 
-				tMsmtInfoReq.Reset(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
+		case <-tMsmtStopReq.C:
+			fmt.Println("\nIts time to finish the measurement! close all conns")
+		
+			tMsmtInfoReq.Stop()
+			sendTcpMsmtStopRequest(addr, port, callSize)
 
-			case <-tMsmtStopReq.C:
-				fmt.Println("\nIts time to finish the measurement! close all conns")
-			
-				// 1. stop the msmt_info_timer: we do not need anymore values
-				timerStopped := tMsmtInfoReq.Stop()
-				if timerStopped {
-					fmt.Printf("\nCall stopped msmt_info_req Timer!")
-				} else {
-					fmt.Printf("\nmsmt_info_req Timer already expired!")
-				}
-
-				// 2. create msmt_stop_req and send
-				/* 
-				NOTE: execute this synchronously
-				After the MsmtStopReply is received, we know
-				the server understood our Request and we can
-				terminate the connections aswell
-				*/
-				sendTcpMsmtStopRequest(addr, port, callSize)
-
-
-
-
-
-				/*
-				TODO: implement Msmt_stop_req logic
-				*/
+			for i := 0; i < workers; i++ {
+				closeConnCh<- "close"
 			}
+			
+			wg.Wait()
+			fmt.Println("\nAll tcp workers are now finished")
+			return
 		}
-	}()
-
-	wg.Wait()
-	fmt.Println("\nTcp workers are now finished")
+	}
 }
 
 
-// this starts the TCP throughput measurement
+// this stops the TCP throughput measurement
 // underlying control channel is TCP based
 func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
 	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtStopReqConn", addr, port, callSize)
@@ -229,7 +223,7 @@ func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
 func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	tcpObj := clientProtos.NewTcpObj("UdpThroughputMsmtConn", addr, port, callSize)
 
-	// TODO: build json "dummy" message
+	// TODO: Still some fields are HARDCODED
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
 	
@@ -261,8 +255,10 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	msmtIdStorage[repDataObj.Measurement_id] = "udp-throughput"
 	fmt.Println("\nWE ARE NOW READY TO START WITH THE UDP MSMT")
 
-	// TODO: UdpThroughput call
-
+	/* TODO: 
+	- UdpThroughput call
+	- UDP oop approach
+	*/
 }
 
 func constructMeasurementObj(name string, msmtType string) *shared.MeasurementObj {
@@ -283,7 +279,7 @@ func runUdpCtrlClient(addr string, port int, callSize int, msmtType string) {
 		idStorageInited = true
 	}
 
-	// TODO: build json "dummy" message
+	// TODO: Still some fields are HARDCODED
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.INFO_REQUEST
 

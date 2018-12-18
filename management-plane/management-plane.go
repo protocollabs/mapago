@@ -15,7 +15,10 @@ var mapInited = false
 func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj, cltAddr string) {
 	switch msmtStartReq.Measurement.Name {
 	case "tcp-throughput":
-		// TODO: differ in constructing msmtId
+		/*
+			- TODO: differ in constructing msmtId
+			- i.e. send only ID not hostaddr
+		*/
 		msmtId := constructMsmtId(cltAddr)
 		msmtCh := make(chan shared.ChMgmt2Msmt)
 
@@ -24,8 +27,6 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 			mapInited = true
 		}
 
-		// TODO: the MsmtObj should get the MsmtId which will be sent to Client
-		// i.e. only the rand
 		tcpMsmtObj := tcpThroughput.NewTcpMsmtObj(msmtCh, ctrlCh, msmtStartReq, msmtId)
 
 		msmtEntry := new(shared.MsmtStorageEntry)
@@ -38,7 +39,9 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 		tcpMsmtObj.Start()
 
 	case "udp-throughput":
-		// TODO: MOVE COMMON STUFF UP
+		/*
+			- TODO: MOVE COMMON STUFF UP
+		*/
 		msmtId := constructMsmtId(cltAddr)
 		msmtCh := make(chan shared.ChMgmt2Msmt)
 
@@ -93,6 +96,11 @@ func constructMsmtId(cltAddr string) string {
 	return msmtId
 }
 
+/*
+- TODO: manager sendet nicht über channel in tcpworker
+- ruft einfach tcpThorughput.stop() auf
+- dieser sendet dann an TcpWorker über Channel
+*/
 func HandleMsmtStopReq(msmtId string) {
 	fmt.Printf("\nMsmtStartReq called!!")
 

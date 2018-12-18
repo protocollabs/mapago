@@ -154,14 +154,38 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(resCh chan<- shared.ChMsmtResult, goH
 	var bytes uint64 = 0
 	start := time.Now()
 	for {
-		// this one is blocking
+		/*
+			- TODO hier kommt select, quasi was unten war
+			- non blocking channel
+			- close sendet dann in channel
+		*/
 		n1, error := conn.Read(message)
 		if error != nil {
 			fmt.Printf("Cannot read: %s\n", error)
 			os.Exit(1)
 		}
 
+		/*
+			select {
+			case msg := <- "STOP":
+				fmt.Println
+				performe close.Conn()
+
+			}
+		*/
+
+		/*
+			- TODO: bytes wird klassen attribut
+			- man muss nicht über channel darauf zugreifen
+			- wird atomarer datentype
+		*/
 		bytes += uint64(n1)
+
+		/*
+			- TODO: Kein Zeitinterval / Messung
+			- Schreibe in Variable
+			- atomare variable
+		*/
 
 		elapsed := time.Since(start)
 		if elapsed.Seconds() > float64(UPDATE_INTERVAL) {
@@ -173,6 +197,13 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(resCh chan<- shared.ChMsmtResult, goH
 	}
 }
 
+/*
+- TODO: Zerlege go Func + for + select in 2 Funktionen
+- Funktion 1:
+	- Close() schreibt in Channel um Worker zu schließen
+- Funktion 2:
+	- Msmt_Info: Liest einfach Klassenvariable
+*/
 func (tcpMsmt *TcpMsmtObj) Start() {
 	numValCtr := 0
 	var accumulated uint64
@@ -190,9 +221,7 @@ func (tcpMsmt *TcpMsmtObj) Start() {
 				case "Msmt_close":
 					fmt.Println("\nWe have to close TCP msmt module!")
 					/*
-						TODO10: we have to close the connection from here
-						i.e. we use a select in the tcpServerWorker()
-						with a channel we can communicate with that
+						- Do this as a separate func
 					*/
 					msmtReply := new(shared.ChMsmt2Ctrl)
 					msmtReply.Status = "ok"
@@ -229,3 +258,9 @@ func (tcpMsmt *TcpMsmtObj) Start() {
 		}
 	}()
 }
+
+/*
+func (tcpMsmt *TcpMsmtObj) Stop() {
+sendet über TCPWorkerChannel "Stop"
+}
+*/

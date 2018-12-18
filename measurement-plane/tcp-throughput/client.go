@@ -9,7 +9,7 @@ import "github.com/monfron/mapago/control-plane/ctrl/shared"
 
 var DEF_BUFFER_SIZE = 8096 * 8
 
-func NewTcpMsmtClient(config shared.ConfigurationObj, wg *sync.WaitGroup) {
+func NewTcpMsmtClient(config shared.ConfigurationObj, wg *sync.WaitGroup, closeConnCh <-chan string) {
 	lAddr := config.Listen_addr
 
 	port, err := strconv.Atoi(config.Port)
@@ -32,30 +32,36 @@ func NewTcpMsmtClient(config shared.ConfigurationObj, wg *sync.WaitGroup) {
 		listen := lAddr + ":" + strconv.Itoa(port)
 		// debug fmt.Println("\nCommunicating with: ", listen)
 		wg.Add(1)
-		go tcpClientWorker(listen, wg)
+		go tcpClientWorker(listen, wg, closeConnCh)
 		port += 1
 	}
 }
 
-// TODO: tcpClientWorker should get an additional
-// channel over that the closing of the goroutine can be performed
-func tcpClientWorker(addr string, wg *sync.WaitGroup) {
-
-	defer wg.Done()
+func tcpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string) {
 	buf := make([]byte, DEF_BUFFER_SIZE, DEF_BUFFER_SIZE)
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		panic("dial")
 	}
-	/*
-		TODO: call "defer conn.Close()" and "defer wg.Done()" when we
-		received a msgs to stop measurement
-	*/
 
 	for {
-		_, err := conn.Write(buf)
-		if err != nil {
-			panic("write")
+		select {
+		case cmd := <-closeConnCh:
+			if cmd == "close" {
+				conn.Close()
+				wg.Done()
+				fmt.Println("\nClosing connection")
+				return
+			} else {
+				fmt.Printf("\nTcpClient worker did not understand cmd: %s", cmd)
+				os.Exit(1)
+			}
+		default:
+			_, err := conn.Write(buf)
+			if err != nil {
+				fmt.Printf("\nWrite error: %s", err)
+				os.Exit(1)
+			}
 		}
 	}
 }

@@ -118,7 +118,6 @@ func (tcp *TcpObj) StartMeasurement(jsonData []byte) *shared.DataObj {
 		fmt.Println("\nClient read num bytes: ", bytes)
 		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
 
-		// TODO
 		if repDataObj.Type == shared.MEASUREMENT_START_REPLY {
 			fmt.Printf("\nClient received an TCP Measurement_Start_Reply!!!")
 			break
