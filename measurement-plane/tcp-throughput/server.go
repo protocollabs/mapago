@@ -3,8 +3,8 @@ package tcpThroughput
 import "fmt"
 import "os"
 import "net"
-import "time"
 import "strconv"
+import "sync/atomic"
 import "github.com/monfron/mapago/control-plane/ctrl/shared"
 
 var UPDATE_INTERVAL = 5
@@ -16,12 +16,7 @@ type TcpMsmtObj struct {
 	callSize   int
 	listenAddr string
 	msmtId     string
-
-	/*
-		- this attribute can be used by start() to RECEIVE result from TcpServerWorker
-		- i.e. => select => msmtResult := <-msmtResultCh
-	*/
-	msmtResultCh chan shared.ChMsmtResult
+	bytesRecvd uint64
 
 	/*
 		- this attribute can be used by start() to RECEIVE cmd from managementplane
@@ -43,7 +38,6 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	var err error
 	var msmtData map[string]string
 	heartbeatCh := make(chan bool)
-	resultCh := make(chan shared.ChMsmtResult)
 	closeCh := make(chan interface{})
 
 	tcpMsmt := new(TcpMsmtObj)
@@ -71,7 +65,6 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	// TODO: this should be the id sent to client
 	tcpMsmt.msmtId = msmtId
 	tcpMsmt.listenAddr = msmtStartReq.Measurement.Configuration.Listen_addr
-	tcpMsmt.msmtResultCh = resultCh
 	tcpMsmt.msmtMgmt2MsmtCh = msmtCh
 	tcpMsmt.msmt2CtrlCh = ctrlCh
 	tcpMsmt.closeConnCh = closeCh
@@ -80,7 +73,7 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 
 	for c := 1; c <= tcpMsmt.numStreams; c++ {
 		fmt.Printf("\n\nStarting stream %d on port %d", c, tcpMsmt.startPort)
-		go tcpMsmt.tcpServerWorker(resultCh, heartbeatCh, tcpMsmt.startPort, closeCh)
+		go tcpMsmt.tcpServerWorker(closeCh, heartbeatCh, tcpMsmt.startPort)
 		tcpMsmt.startPort++
 	}
 
@@ -113,12 +106,7 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	return tcpMsmt
 }
 
-func (tcpMsmt *TcpMsmtObj) tcpServerWorker(resCh chan<- shared.ChMsmtResult, goHeartbeatCh chan<- bool, port int, closeCh <-chan interface{}) {
-
-	/*
-		- we can not do that: listen := tcpMsmt.listenAddr + ":" + strconv.Itoa(tcpMsmt.startPort)
-		- or we get a race condition :(
-	*/
+func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int) {
 	listen := tcpMsmt.listenAddr + ":" + strconv.Itoa(port)
 
 	addr, error := net.ResolveTCPAddr("tcp", listen)
@@ -148,8 +136,6 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(resCh chan<- shared.ChMsmtResult, goH
 	fmt.Printf("Connection from %s\n", conn.RemoteAddr())
 	message := make([]byte, tcpMsmt.callSize, tcpMsmt.callSize)
 
-	var bytes uint64 = 0
-	start := time.Now()
 	for {
 		select {
 		case data := <-closeCh:
@@ -174,25 +160,7 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(resCh chan<- shared.ChMsmtResult, goH
 				os.Exit(1)
 			}
 
-			/*
-				- TODO: bytes wird klassen attribut
-				- man muss nicht über channel darauf zugreifen
-				- wird atomarer datentype
-			*/
-			bytes += uint64(n1)
-
-			/*
-				- TODO: Kein Zeitinterval / Messung
-				- Schreibe in Variable
-				- atomare variable
-			*/
-			elapsed := time.Since(start)
-			if elapsed.Seconds() > float64(UPDATE_INTERVAL) {
-				// this result is sent to start() => select => msmtResult := <-msmtResultCh
-				resCh <- shared.ChMsmtResult{Bytes: bytes, Time: elapsed.Seconds()}
-				start = time.Now()
-				bytes = 0
-			}
+			atomic.AddUint64(&tcpMsmt.bytesRecvd, uint64(n1))
 		}
 	}
 }
@@ -218,32 +186,11 @@ func (tcpMsmt *TcpMsmtObj) CloseConn() {
 	}()
 }
 
-/*
-- TODO: This func will be removed
-- Msmt_Info: just read the atomic class attribut => this remove go + select
-- Next commit!
-*/
-func (tcpMsmt *TcpMsmtObj) Start() {
-	numValCtr := 0
-	var accumulated uint64
-
-	go func() {
-		for {
-			// POSSIBLE BLOCKING CAUSE: select blocks until one of its cases can run
-			select {
-			case msmtResult := <-tcpMsmt.msmtResultCh:
-				numValCtr += 1
-				accumulated += msmtResult.Bytes
-
-				if numValCtr == tcpMsmt.numStreams {
-					fmt.Printf("\nGot reply from all %d workers", tcpMsmt.numStreams)
-					mbyte_sec := accumulated / (1000000 * uint64(UPDATE_INTERVAL))
-					println("\nMByte/sec: ", mbyte_sec)
-					// start next measurement burst
-					accumulated = 0
-					numValCtr = 0
-				}
-			}
-		}
-	}()
+func (tcpMsmt *TcpMsmtObj) getByteInfo() {
+	/*
+		- TODO: Readout atomic attribute
+		- Do something like:
+		bytes := atomic.LoadUint64(&tcpMsmt)
+		tcpMsmt.msmt2CtrlCh<- bytes
+	*/
 }

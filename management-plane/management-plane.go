@@ -36,8 +36,6 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 
 		fmt.Println("\nmsmtStorage content: ", msmtStorage)
 
-		tcpMsmtObj.Start()
-
 	case "udp-throughput":
 		/*
 			- TODO: MOVE COMMON STUFF UP

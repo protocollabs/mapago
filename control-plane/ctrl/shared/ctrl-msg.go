@@ -46,7 +46,8 @@ type ChMgmt2Msmt struct {
 }
 
 /*
-reply sent from within the (TCP/UDP/QUIC) measurement module
+- NOTE: DISCONTINUED! This is now only used by the unfinished UDP msmt
+- reply sent from within the (TCP/UDP/QUIC) measurement module
 whats actually received: "i received 666 bytes"
 */
 type ChMsmtResult struct {
