@@ -79,7 +79,8 @@ type DataObj struct {
 	Padding              string         `json:",omitempty"`
 	Modules              string         `json:",omitempty"`
 	Measurement          MeasurementObj `json:",omitempty"`
-
+	Data                 DataCollectionObj  `json:",omitempty"`
+	
 	/*
 		TODO: how to handle
 		ControlProtocol
@@ -90,7 +91,6 @@ type MeasurementObj struct {
 	Name          string           `json:",omitempty"`
 	Type          string           `json:",omitempty"`
 	Configuration ConfigurationObj `json:",omitempty"`
-	// TODO: Include the actual measurement result
 }
 
 type ConfigurationObj struct {
@@ -108,4 +108,14 @@ type ConfigurationObj struct {
 	// useful other fields?!
 	Listen_addr string `json:",omitempty"`
 	Call_size   string `json:",omitempty"`
+}
+
+type DataCollectionObj struct {
+	DataElement []DataResultObj
+}
+
+type DataResultObj struct {
+	Timestamp_first string `json:",omitempty"`
+	Timestamp_last  string `json:",omitempty"`
+	Received_bytes  string `json:",omitempty"`
 }
