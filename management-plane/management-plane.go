@@ -110,9 +110,13 @@ func HandleMsmtStopReq(msmtId string) {
 		os.Exit(1)
 	}
 
-	// send message to object to close conn
-	mgmtCmd := new(shared.ChMgmt2Msmt)
-	mgmtCmd.Cmd = "Msmt_close"
-	mgmtCmd.MsmtId = msmtId
-	msmtEntry.MsmtCh <- *mgmtCmd
+	switch msmstObj := msmtEntry.MsmtObj.(type) {
+	case *tcpThroughput.TcpMsmtObj:
+		msmstObj.CloseConn()
+	// TODO	case *udpThroughput.UdpMsmtObj:
+	// TODO	case *quicThroughput.QuicMsmtObj:
+	default:
+		fmt.Printf("Type assertion failed: Unknown msmt type")
+		os.Exit(1)
+	}
 }

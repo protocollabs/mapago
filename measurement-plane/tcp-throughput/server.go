@@ -32,6 +32,11 @@ type TcpMsmtObj struct {
 		- this attribute can be used by constructor and start() to SEND msgs to control plane
 	*/
 	msmt2CtrlCh chan<- shared.ChMsmt2Ctrl
+
+	/*
+		- channel for closing connection
+	*/
+	closeConnCh chan interface{}
 }
 
 func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj, msmtId string) *TcpMsmtObj {
@@ -39,6 +44,7 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	var msmtData map[string]string
 	heartbeatCh := make(chan bool)
 	resultCh := make(chan shared.ChMsmtResult)
+	closeCh := make(chan interface{})
 
 	tcpMsmt := new(TcpMsmtObj)
 
@@ -68,12 +74,13 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	tcpMsmt.msmtResultCh = resultCh
 	tcpMsmt.msmtMgmt2MsmtCh = msmtCh
 	tcpMsmt.msmt2CtrlCh = ctrlCh
+	tcpMsmt.closeConnCh = closeCh
 
 	fmt.Printf("\n\nTCP Msmt: Client wants %d workers to be started from start port %d!", tcpMsmt.numStreams, tcpMsmt.startPort)
 
 	for c := 1; c <= tcpMsmt.numStreams; c++ {
 		fmt.Printf("\n\nStarting stream %d on port %d", c, tcpMsmt.startPort)
-		go tcpMsmt.tcpServerWorker(resultCh, heartbeatCh, tcpMsmt.startPort)
+		go tcpMsmt.tcpServerWorker(resultCh, heartbeatCh, tcpMsmt.startPort, closeCh)
 		tcpMsmt.startPort++
 	}
 
@@ -106,7 +113,7 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	return tcpMsmt
 }
 
-func (tcpMsmt *TcpMsmtObj) tcpServerWorker(resCh chan<- shared.ChMsmtResult, goHeartbeatCh chan<- bool, port int) {
+func (tcpMsmt *TcpMsmtObj) tcpServerWorker(resCh chan<- shared.ChMsmtResult, goHeartbeatCh chan<- bool, port int, closeCh <-chan interface{}) {
 
 	/*
 		- we can not do that: listen := tcpMsmt.listenAddr + ":" + strconv.Itoa(tcpMsmt.startPort)
@@ -130,11 +137,6 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(resCh chan<- shared.ChMsmtResult, goH
 		os.Exit(1)
 	}
 
-	/*
-		- NOTE: We must not do "defer listener.Close()" here
-		- this has to be done after msmt_stop_req incoming
-	*/
-
 	goHeartbeatCh <- true
 
 	conn, error := listener.AcceptTCP()
@@ -143,105 +145,92 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(resCh chan<- shared.ChMsmtResult, goH
 		os.Exit(1)
 	}
 
-	/*
-		- NOTE: We must not do "defer conn.Close()" here
-		- this has to be done after msmt_stop_req incoming
-	*/
-
 	fmt.Printf("Connection from %s\n", conn.RemoteAddr())
 	message := make([]byte, tcpMsmt.callSize, tcpMsmt.callSize)
 
 	var bytes uint64 = 0
 	start := time.Now()
 	for {
-		/*
-			- TODO hier kommt select, quasi was unten war
-			- non blocking channel
-			- close sendet dann in channel
-		*/
-		n1, error := conn.Read(message)
-		if error != nil {
-			fmt.Printf("Cannot read: %s\n", error)
-			os.Exit(1)
-		}
-
-		/*
-			select {
-			case msg := <- "STOP":
-				fmt.Println
-				performe close.Conn()
-
+		select {
+		case data := <-closeCh:
+			cmd, ok := data.(string)
+			if ok == false {
+				fmt.Printf("Type assertion failed: Looking for string %t", ok)
+				os.Exit(1)
 			}
-		*/
 
-		/*
-			- TODO: bytes wird klassen attribut
-			- man muss nicht über channel darauf zugreifen
-			- wird atomarer datentype
-		*/
-		bytes += uint64(n1)
+			if cmd != "close" {
+				fmt.Printf("Wrong cmd: Looking for close cmd")
+				os.Exit(1)
+			}
+			fmt.Println("\nClosing conn")
+			listener.Close()
+			conn.Close()
+			return
+		default:
+			n1, error := conn.Read(message)
+			if error != nil {
+				fmt.Printf("Cannot read: %s\n", error)
+				os.Exit(1)
+			}
 
-		/*
-			- TODO: Kein Zeitinterval / Messung
-			- Schreibe in Variable
-			- atomare variable
-		*/
+			/*
+				- TODO: bytes wird klassen attribut
+				- man muss nicht über channel darauf zugreifen
+				- wird atomarer datentype
+			*/
+			bytes += uint64(n1)
 
-		elapsed := time.Since(start)
-		if elapsed.Seconds() > float64(UPDATE_INTERVAL) {
-			// this result is sent to start() => select => msmtResult := <-msmtResultCh
-			resCh <- shared.ChMsmtResult{Bytes: bytes, Time: elapsed.Seconds()}
-			start = time.Now()
-			bytes = 0
+			/*
+				- TODO: Kein Zeitinterval / Messung
+				- Schreibe in Variable
+				- atomare variable
+			*/
+			elapsed := time.Since(start)
+			if elapsed.Seconds() > float64(UPDATE_INTERVAL) {
+				// this result is sent to start() => select => msmtResult := <-msmtResultCh
+				resCh <- shared.ChMsmtResult{Bytes: bytes, Time: elapsed.Seconds()}
+				start = time.Now()
+				bytes = 0
+			}
 		}
 	}
 }
 
+func (tcpMsmt *TcpMsmtObj) CloseConn() {
+	var msmtData map[string]string
+
+	for i := 0; i < tcpMsmt.numStreams; i++ {
+		tcpMsmt.closeConnCh <- "close"
+	}
+
+	msmtReply := new(shared.ChMsmt2Ctrl)
+	msmtReply.Status = "ok"
+
+	msmtData = make(map[string]string)
+	msmtData["msmtId"] = tcpMsmt.msmtId
+	msmtData["msg"] = "all modules closed"
+	msmtReply.Data = msmtData
+
+	// TODO: we have to attach the final Measurement Data
+	go func() {
+		tcpMsmt.msmt2CtrlCh <- *msmtReply
+	}()
+}
+
 /*
-- TODO: Zerlege go Func + for + select in 2 Funktionen
-- Funktion 1:
-	- Close() schreibt in Channel um Worker zu schließen
-- Funktion 2:
-	- Msmt_Info: Liest einfach Klassenvariable
+- TODO: This func will be removed
+- Msmt_Info: just read the atomic class attribut => this remove go + select
+- Next commit!
 */
 func (tcpMsmt *TcpMsmtObj) Start() {
 	numValCtr := 0
 	var accumulated uint64
-	var msmtData map[string]string
 
 	go func() {
 		for {
 			// POSSIBLE BLOCKING CAUSE: select blocks until one of its cases can run
 			select {
-			case mgmtCmd := <-tcpMsmt.msmtMgmt2MsmtCh:
-				fmt.Println("\nReceived Management Command: ", mgmtCmd.Cmd)
-
-				switch mgmtCmd.Cmd {
-
-				case "Msmt_close":
-					fmt.Println("\nWe have to close TCP msmt module!")
-					/*
-						- Do this as a separate func
-					*/
-					msmtReply := new(shared.ChMsmt2Ctrl)
-					msmtReply.Status = "ok"
-
-					msmtData = make(map[string]string)
-					msmtData["msmtId"] = tcpMsmt.msmtId
-					msmtData["msg"] = "all modules closed"
-					msmtReply.Data = msmtData
-
-					// TODO: we have to attach the Measurement Data
-					tcpMsmt.msmt2CtrlCh <- *msmtReply
-
-				case "Msmt_info":
-					fmt.Println("\nTODO: We have to send TCP msmt info!")
-
-				default:
-					fmt.Printf("Unknown measurement module")
-					os.Exit(1)
-				}
-
 			case msmtResult := <-tcpMsmt.msmtResultCh:
 				numValCtr += 1
 				accumulated += msmtResult.Bytes
@@ -258,9 +247,3 @@ func (tcpMsmt *TcpMsmtObj) Start() {
 		}
 	}()
 }
-
-/*
-func (tcpMsmt *TcpMsmtObj) Stop() {
-sendet über TCPWorkerChannel "Stop"
-}
-*/

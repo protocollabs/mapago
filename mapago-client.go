@@ -172,13 +172,16 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 			fmt.Println("\nIts time to finish the measurement! close all conns")
 		
 			tMsmtInfoReq.Stop()
-			sendTcpMsmtStopRequest(addr, port, callSize)
 
 			for i := 0; i < workers; i++ {
 				closeConnCh<- "close"
 			}
-			
+
 			wg.Wait()
+			
+			// all connections are now terminated: server should shut down aswell
+			sendTcpMsmtStopRequest(addr, port, callSize)
+
 			fmt.Println("\nAll tcp workers are now finished")
 			return
 		}
