@@ -4,7 +4,7 @@ import "fmt"
 import "os"
 import "net"
 import "strconv"
-import "sync/atomic"
+import "sync"
 import "github.com/monfron/mapago/control-plane/ctrl/shared"
 
 var UPDATE_INTERVAL = 5
@@ -16,7 +16,8 @@ type TcpMsmtObj struct {
 	callSize   int
 	listenAddr string
 	msmtId     string
-	bytesRecvd uint64
+	byteStorage map[string]uint64
+	byteStorageMutex sync.RWMutex
 
 	/*
 		- this attribute can be used by start() to RECEIVE cmd from managementplane
@@ -39,9 +40,10 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	var msmtData map[string]string
 	heartbeatCh := make(chan bool)
 	closeCh := make(chan interface{})
-
 	tcpMsmt := new(TcpMsmtObj)
-
+	
+	tcpMsmt.byteStorage = make(map[string]uint64)
+	
 	fmt.Println("\nClient request is: ", msmtStartReq)
 
 	tcpMsmt.numStreams, err = strconv.Atoi(msmtStartReq.Measurement.Configuration.Worker)
@@ -73,7 +75,7 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 
 	for c := 1; c <= tcpMsmt.numStreams; c++ {
 		fmt.Printf("\n\nStarting stream %d on port %d", c, tcpMsmt.startPort)
-		go tcpMsmt.tcpServerWorker(closeCh, heartbeatCh, tcpMsmt.startPort)
+		go tcpMsmt.tcpServerWorker(closeCh, heartbeatCh, tcpMsmt.startPort, c)
 		tcpMsmt.startPort++
 	}
 
@@ -106,7 +108,10 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	return tcpMsmt
 }
 
-func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int) {
+func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int) {
+	stream := "stream" + strconv.Itoa(streamIndex)
+	fmt.Printf("\n%s is here", stream)
+
 	listen := tcpMsmt.listenAddr + ":" + strconv.Itoa(port)
 
 	addr, error := net.ResolveTCPAddr("tcp", listen)
@@ -149,21 +154,37 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 				fmt.Printf("Wrong cmd: Looking for close cmd")
 				os.Exit(1)
 			}
-			fmt.Println("\nClosing conn")
 			listener.Close()
 			conn.Close()
 			return
 		default:
-			n1, error := conn.Read(message)
+			bytes, error := conn.Read(message)
 			if error != nil {
 				fmt.Printf("Cannot read: %s\n", error)
 				os.Exit(1)
 			}
 
-			atomic.AddUint64(&tcpMsmt.bytesRecvd, uint64(n1))
+			tcpMsmt.writeByteStorage(stream, uint64(bytes))
+
 		}
 	}
 }
+
+func (tcpMsmt *TcpMsmtObj) writeByteStorage(stream string, bytes uint64) {
+	tcpMsmt.byteStorageMutex.Lock()
+	tcpMsmt.byteStorage[stream] = tcpMsmt.byteStorage[stream] + bytes
+	tcpMsmt.byteStorageMutex.Unlock()
+}
+
+// we can precise which key to address
+func (tcpMsmt *TcpMsmtObj) readByteStorage(stream string) uint64{
+	tcpMsmt.byteStorageMutex.RLock()
+	bytes := tcpMsmt.byteStorage[stream]
+	tcpMsmt.byteStorageMutex.RUnlock()
+
+	return bytes
+}
+
 
 func (tcpMsmt *TcpMsmtObj) CloseConn() {
 	var msmtData map[string]string
@@ -186,11 +207,34 @@ func (tcpMsmt *TcpMsmtObj) CloseConn() {
 	}()
 }
 
-func (tcpMsmt *TcpMsmtObj) getByteInfo() {
-	/*
-		- TODO: Readout atomic attribute
-		- Do something like:
-		bytes := atomic.LoadUint64(&tcpMsmt)
-		tcpMsmt.msmt2CtrlCh<- bytes
-	*/
+func (tcpMsmt *TcpMsmtObj) GetMsmtInfo() {
+	var msmtData []shared.DataResultObj
+
+	msmtReply := new(shared.ChMsmt2Ctrl)
+	msmtReply.Status = "ok"
+
+	// prepare msmtReply.Data
+	for c := 1; c <= tcpMsmt.numStreams; c++ {
+		stream := "stream" + strconv.Itoa(c)
+		bytes := tcpMsmt.readByteStorage(stream)
+
+		// create single data element: 
+		// i.e. read stream bytes, timestamp calculation
+		dataElement := new(shared.DataResultObj)
+		dataElement.Received_bytes = strconv.Itoa(int(bytes))
+
+		// these are dummy values
+		dataElement.Timestamp_first = shared.ConvCurrDateToStr()
+		dataElement.Timestamp_last = shared.ConvCurrDateToStr()
+
+		// add single DataElement to slice
+		msmtData = append(msmtData, *dataElement)
+		fmt.Println("\nmsmtData is: ", msmtData)
+	}
+
+	msmtReply.Data = msmtData
+
+	go func() {
+		tcpMsmt.msmt2CtrlCh <- *msmtReply
+	}()
 }

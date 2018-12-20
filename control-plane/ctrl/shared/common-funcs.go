@@ -14,7 +14,7 @@ import "path/filepath"
 const DATE_FMT = "2006-01-02 15:04:05.000000000"
 
 func ConvJsonToDataStruct(jsonData []byte) *DataObj {
-	fmt.Printf("\n Converting json data: % x", jsonData)
+	// debug fmt.Printf("\n Converting json data: % x", jsonData)
 
 	dataObj := new(DataObj)
 
