@@ -118,3 +118,25 @@ func HandleMsmtStopReq(msmtId string) {
 		os.Exit(1)
 	}
 }
+
+func HandleMsmtInfoReq(msmtId string) {
+	fmt.Printf("\nMsmtInfoReq called!!")
+
+	msmtEntry, exists := msmtStorage[msmtId]
+	if exists == false {
+		fmt.Printf("\nmsmtEntry for msmtId NOT in storage")
+		os.Exit(1)
+	}
+	// debug
+	fmt.Println("\n I found the appropriate msmt obj: ", msmtEntry)
+
+	switch msmstObj := msmtEntry.MsmtObj.(type) {
+	case *tcpThroughput.TcpMsmtObj:
+		msmstObj.GetMsmtInfo()
+	// TODO	case *udpThroughput.UdpMsmtObj:
+	// TODO	case *quicThroughput.QuicMsmtObj:
+	default:
+		fmt.Printf("Type assertion failed: Unknown msmt type")
+		os.Exit(1)
+	}
+}
