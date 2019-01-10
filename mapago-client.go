@@ -128,8 +128,6 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	// debug fmt.Printf("\nmsmt start request JSON is: % s", reqJson)
 
-	// RFC: this should return the server listen ports
-	// this thing waits until measurement_start_rep is received 
 	repDataObj := tcpObj.StartMeasurement(reqJson)
 	fmt.Println("\n\n------------- Client received (TCP) Measurement_Start_reply ------------- \n", repDataObj)
 
@@ -142,8 +140,7 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 
 	// debug fmt.Println("\nWE ARE NOW READY TO START WITH THE TCP MSMT")
 
-	// RFC: the server proposed listen ports should be used here
-	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, &wg, closeConnCh)
+	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh)
 
 	fmt.Println("\n\n---------- TCP MSMT is now running ---------- ")
 	

@@ -98,7 +98,6 @@ type ConfigurationObj struct {
 	Payload_pattern string `json:",omitempty"`
 	// RFC: the port is now selected by the server
 	// remove it from the configuration
-	Port          string `json:",omitempty"`
 	UsedPorts     string `json:",omitempty"`
 	Rate          string `json:",omitempty"`
 	Rate_burst    string `json:",omitempty"`

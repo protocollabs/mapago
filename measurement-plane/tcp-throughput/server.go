@@ -77,8 +77,6 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 
 	fmt.Println("\n\nPorts used by TCP module: ", tcpMsmt.usedPorts)
 
-	// RFC: Add used ports to reply
-	// send reply to control plane
 	msmtReply := new(shared.ChMsmt2Ctrl)
 	msmtReply.Status = "ok"
 
@@ -86,7 +84,7 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	msmtData["msmtId"] = tcpMsmt.msmtId
 	msmtData["msg"] = "all modules running"
 	msmtData["usedPorts"] = shared.ConvIntSliceToStr(tcpMsmt.usedPorts)
-	
+
 	msmtReply.Data = msmtData
 
 	/*
