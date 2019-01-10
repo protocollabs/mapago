@@ -10,7 +10,7 @@ import "github.com/monfron/mapago/control-plane/ctrl/shared"
 var UPDATE_INTERVAL = 5
 
 type TcpMsmtObj struct {
-	numStreams int
+	numStreams       int
 	usedPorts        []int
 	callSize         int
 	listenAddr       string
@@ -86,6 +86,7 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	msmtData["msmtId"] = tcpMsmt.msmtId
 	msmtData["msg"] = "all modules running"
 	msmtData["usedPorts"] = shared.ConvIntSliceToStr(tcpMsmt.usedPorts)
+	
 	msmtReply.Data = msmtData
 
 	/*

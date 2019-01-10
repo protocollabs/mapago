@@ -62,7 +62,6 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 			and cannot receive anything else
 		*/
 
-		// RFC: handover startport (global)
 		go udpThroughput.NewUdpMsmt(msmtCh, ctrlCh, msmtStartReq)
 
 		/*

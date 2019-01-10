@@ -206,6 +206,7 @@ func constructMsmtStartReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2C
 
 	repDataObj.Measurement_id = msmtData["msmtId"]
 	repDataObj.Message = msmtData["msg"]
+	repDataObj.Measurement.Configuration.UsedPorts = msmtData["usedPorts"]
 
 	return repDataObj
 }

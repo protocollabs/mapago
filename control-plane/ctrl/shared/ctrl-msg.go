@@ -99,6 +99,7 @@ type ConfigurationObj struct {
 	// RFC: the port is now selected by the server
 	// remove it from the configuration
 	Port          string `json:",omitempty"`
+	UsedPorts     string `json:",omitempty"`
 	Rate          string `json:",omitempty"`
 	Rate_burst    string `json:",omitempty"`
 	Packet_length string `json:",omitempty"`
