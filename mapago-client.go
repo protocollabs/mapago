@@ -128,6 +128,8 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	// debug fmt.Printf("\nmsmt start request JSON is: % s", reqJson)
 
+	// RFC: this should return the server listen ports
+	// this thing waits until measurement_start_rep is received 
 	repDataObj := tcpObj.StartMeasurement(reqJson)
 	fmt.Println("\n\n------------- Client received (TCP) Measurement_Start_reply ------------- \n", repDataObj)
 
@@ -139,6 +141,8 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	msmtIdStorage["tcp-throughput1"] = repDataObj.Measurement_id
 
 	// debug fmt.Println("\nWE ARE NOW READY TO START WITH THE TCP MSMT")
+
+	// RFC: the server proposed listen ports should be used here
 	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, &wg, closeConnCh)
 
 	fmt.Println("\n\n---------- TCP MSMT is now running ---------- ")
@@ -255,6 +259,8 @@ func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
 
 // this starts the UDP throughput measurement
 // underlying control channel is TCP based
+// RFC: The underlying CONTROL CHANNEL IS HERE TCP
+// WE HAVE TO CHANGE THAT
 func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	tcpObj := clientProtos.NewTcpObj("UdpThroughputMsmtConn", addr, port, callSize)
 
@@ -279,6 +285,7 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
 
+	// RFC: this should return the server listen ports
 	repDataObj := tcpObj.StartMeasurement(reqJson)
 	fmt.Println("\n\n-------------Client received (UDP) Measurement_Start_reply ------------- \n", repDataObj)
 
@@ -289,6 +296,8 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 
 	msmtIdStorage[repDataObj.Measurement_id] = "udp-throughput"
 	fmt.Println("\nWE ARE NOW READY TO START WITH THE UDP MSMT")
+
+	// RFC: this should return the server listen ports
 
 	/* TODO: 
 	- UdpThroughput call

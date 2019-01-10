@@ -9,6 +9,7 @@ import "github.com/monfron/mapago/control-plane/ctrl/shared"
 
 var DEF_BUFFER_SIZE = 8096 * 8
 
+// RFC: the server proposed listen ports should be used here
 func NewTcpMsmtClient(config shared.ConfigurationObj, wg *sync.WaitGroup, closeConnCh <-chan string) {
 	lAddr := config.Listen_addr
 
@@ -29,6 +30,7 @@ func NewTcpMsmtClient(config shared.ConfigurationObj, wg *sync.WaitGroup, closeC
 	fmt.Println("\nDestination listen addr: ", lAddr)
 
 	for i := 0; i < numThreads; i++ {
+		// RFC: the client now uses the advertised ports
 		listen := lAddr + ":" + strconv.Itoa(port)
 		// debug fmt.Println("\nCommunicating with: ", listen)
 		wg.Add(1)

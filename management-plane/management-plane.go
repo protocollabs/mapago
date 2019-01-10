@@ -11,6 +11,7 @@ import "github.com/monfron/mapago/measurement-plane/udp-throughput"
 
 var msmtStorage map[string]*shared.MsmtStorageEntry
 var mapInited = false
+var startPort = 7000
 
 func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj, cltAddr string) {
 	switch msmtStartReq.Measurement.Name {
@@ -27,7 +28,7 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 			mapInited = true
 		}
 
-		tcpMsmtObj := tcpThroughput.NewTcpMsmtObj(msmtCh, ctrlCh, msmtStartReq, msmtId)
+		tcpMsmtObj := tcpThroughput.NewTcpMsmtObj(msmtCh, ctrlCh, msmtStartReq, msmtId, startPort)
 
 		msmtEntry := new(shared.MsmtStorageEntry)
 		msmtEntry.MsmtCh = msmtCh
@@ -60,6 +61,8 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 			or we stay within the for loop and block on the channel
 			and cannot receive anything else
 		*/
+
+		// RFC: handover startport (global)
 		go udpThroughput.NewUdpMsmt(msmtCh, ctrlCh, msmtStartReq)
 
 		/*

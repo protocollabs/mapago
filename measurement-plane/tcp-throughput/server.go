@@ -11,12 +11,11 @@ var UPDATE_INTERVAL = 5
 
 type TcpMsmtObj struct {
 	numStreams int
-	// TODO: in the future the server should define which Port to use
-	startPort  int
-	callSize   int
-	listenAddr string
-	msmtId     string
-	byteStorage map[string]uint64
+	usedPorts        []int
+	callSize         int
+	listenAddr       string
+	msmtId           string
+	byteStorage      map[string]uint64
 	byteStorageMutex sync.RWMutex
 
 	/*
@@ -35,26 +34,20 @@ type TcpMsmtObj struct {
 	closeConnCh chan interface{}
 }
 
-func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj, msmtId string) *TcpMsmtObj {
+func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj, msmtId string, startPort int) *TcpMsmtObj {
 	var err error
 	var msmtData map[string]string
 	heartbeatCh := make(chan bool)
 	closeCh := make(chan interface{})
 	tcpMsmt := new(TcpMsmtObj)
-	
+
 	tcpMsmt.byteStorage = make(map[string]uint64)
-	
+
 	fmt.Println("\nClient request is: ", msmtStartReq)
 
 	tcpMsmt.numStreams, err = strconv.Atoi(msmtStartReq.Measurement.Configuration.Worker)
 	if err != nil {
 		fmt.Printf("\nCannot convert worker value: %s", err)
-		os.Exit(1)
-	}
-
-	tcpMsmt.startPort, err = strconv.Atoi(msmtStartReq.Measurement.Configuration.Port)
-	if err != nil {
-		fmt.Printf("\nCannot convert port value: %s", err)
 		os.Exit(1)
 	}
 
@@ -71,12 +64,8 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	tcpMsmt.msmt2CtrlCh = ctrlCh
 	tcpMsmt.closeConnCh = closeCh
 
-	fmt.Printf("\n\nTCP Msmt: Client wants %d workers to be started from start port %d!", tcpMsmt.numStreams, tcpMsmt.startPort)
-
 	for c := 1; c <= tcpMsmt.numStreams; c++ {
-		fmt.Printf("\n\nStarting stream %d on port %d", c, tcpMsmt.startPort)
-		go tcpMsmt.tcpServerWorker(closeCh, heartbeatCh, tcpMsmt.startPort, c)
-		tcpMsmt.startPort++
+		go tcpMsmt.tcpServerWorker(closeCh, heartbeatCh, startPort, c)
 	}
 
 	for c := 1; c <= tcpMsmt.numStreams; c++ {
@@ -86,8 +75,9 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 		}
 	}
 
-	fmt.Println("\n\nGoroutines ok: We are save to send a reply!")
+	fmt.Println("\n\nPorts used by TCP module: ", tcpMsmt.usedPorts)
 
+	// RFC: Add used ports to reply
 	// send reply to control plane
 	msmtReply := new(shared.ChMsmt2Ctrl)
 	msmtReply.Status = "ok"
@@ -109,28 +99,31 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 }
 
 func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int) {
+	var listener *net.TCPListener
 	stream := "stream" + strconv.Itoa(streamIndex)
 	fmt.Printf("\n%s is here", stream)
 
-	listen := tcpMsmt.listenAddr + ":" + strconv.Itoa(port)
+	for {
+		listen := tcpMsmt.listenAddr + ":" + strconv.Itoa(port)
 
-	addr, error := net.ResolveTCPAddr("tcp", listen)
-	if error != nil {
-		fmt.Printf("Cannot parse \"%s\": %s\n", listen, error)
-		goHeartbeatCh <- false
-		os.Exit(1)
+		addr, error := net.ResolveTCPAddr("tcp", listen)
+		if error != nil {
+			fmt.Printf("Cannot parse \"%s\": %s\n", listen, error)
+			goHeartbeatCh <- false
+			os.Exit(1)
+		}
+
+		listener, error = net.ListenTCP("tcp", addr)
+		if error == nil {
+			// debug fmt.Printf("\nCan listen on addr: %s\n", listen)
+			tcpMsmt.usedPorts = append(tcpMsmt.usedPorts, port)
+			goHeartbeatCh <- true
+			break
+		} else {
+			// debug fmt.Printf("\nCannot listen on addr: %s\n", listen)
+			port++
+		}
 	}
-
-	fmt.Println("\nlistening on addr : ", addr)
-
-	listener, error := net.ListenTCP("tcp", addr)
-	if error != nil {
-		fmt.Printf("Cannot listen: %s\n", error)
-		goHeartbeatCh <- false
-		os.Exit(1)
-	}
-
-	goHeartbeatCh <- true
 
 	conn, error := listener.AcceptTCP()
 	if error != nil {
@@ -165,7 +158,6 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 			}
 
 			tcpMsmt.writeByteStorage(stream, uint64(bytes))
-
 		}
 	}
 }
@@ -177,14 +169,13 @@ func (tcpMsmt *TcpMsmtObj) writeByteStorage(stream string, bytes uint64) {
 }
 
 // we can precise which key to address
-func (tcpMsmt *TcpMsmtObj) readByteStorage(stream string) uint64{
+func (tcpMsmt *TcpMsmtObj) readByteStorage(stream string) uint64 {
 	tcpMsmt.byteStorageMutex.RLock()
 	bytes := tcpMsmt.byteStorage[stream]
 	tcpMsmt.byteStorageMutex.RUnlock()
 
 	return bytes
 }
-
 
 func (tcpMsmt *TcpMsmtObj) CloseConn() {
 	var msmtData map[string]string
@@ -218,7 +209,7 @@ func (tcpMsmt *TcpMsmtObj) GetMsmtInfo() {
 		stream := "stream" + strconv.Itoa(c)
 		bytes := tcpMsmt.readByteStorage(stream)
 
-		// create single data element: 
+		// create single data element:
 		// i.e. read stream bytes, timestamp calculation
 		dataElement := new(shared.DataResultObj)
 		dataElement.Received_bytes = strconv.Itoa(int(bytes))
@@ -229,7 +220,7 @@ func (tcpMsmt *TcpMsmtObj) GetMsmtInfo() {
 
 		// add single DataElement to slice
 		msmtData = append(msmtData, *dataElement)
-		fmt.Println("\nmsmtData is: ", msmtData)
+		// debug fmt.Println("\nmsmtData is: ", msmtData)
 	}
 
 	msmtReply.Data = msmtData

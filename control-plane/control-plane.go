@@ -79,6 +79,7 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 				recvCh := make(chan shared.ChMsmt2Ctrl)
 
 				clientIp := request.ConnObj.DetectRemoteAddr()
+				// RFC: atm the server listen port is advertised by the client
 				managementPlane.HandleMsmtStartReq(recvCh, reqDataObj, clientIp.String())
 
 				/*

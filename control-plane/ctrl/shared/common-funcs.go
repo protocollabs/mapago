@@ -56,6 +56,7 @@ func ConvDataStructToJson(data *DataObj) []byte {
 	return resB
 }
 
+// RFC: the measurement listening port must not configured here
 func ConstructConfiguration(configDir string) *ConfigurationObj {
 	ConfObj := new(ConfigurationObj)
 
