@@ -85,6 +85,7 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	msmtData = make(map[string]string)
 	msmtData["msmtId"] = tcpMsmt.msmtId
 	msmtData["msg"] = "all modules running"
+	msmtData["usedPorts"] = shared.ConvIntSliceToStr(tcpMsmt.usedPorts)
 	msmtReply.Data = msmtData
 
 	/*

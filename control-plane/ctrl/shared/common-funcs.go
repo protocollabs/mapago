@@ -120,6 +120,11 @@ func ConvCurrDateToStr() string {
 	return dateStr
 }
 
+func ConvIntSliceToStr(slice []int) string {
+	str := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(slice)), ","), "[]")
+	return str
+}
+
 func ConvStrDateToNatDate(date string) time.Time {
 	time, err := time.Parse(DATE_FMT, date)
 	if err != nil {
