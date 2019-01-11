@@ -9,6 +9,7 @@ import "time"
 import "strconv"
 import "github.com/monfron/mapago/control-plane/ctrl/client-protocols"
 import "github.com/monfron/mapago/measurement-plane/tcp-throughput"
+import "github.com/monfron/mapago/measurement-plane/udp-throughput"
 import "github.com/monfron/mapago/control-plane/ctrl/shared"
 
 var CTRL_PORT = 64321
@@ -256,9 +257,9 @@ func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
 
 // this starts the UDP throughput measurement
 // underlying control channel is TCP based
-// RFC: The underlying CONTROL CHANNEL IS HERE TCP
-// WE HAVE TO CHANGE THAT
 func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
+	var wg sync.WaitGroup
+	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("UdpThroughputMsmtConn", addr, port, callSize)
 
 	// TODO: Still some fields are HARDCODED
@@ -279,28 +280,42 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	msmtObj := constructMeasurementObj("udp-throughput", "module")
 	reqDataObj.Measurement = *msmtObj
 
+	numWorker, err := strconv.Atoi(reqDataObj.Measurement.Configuration.Worker)
+	if err != nil {
+		fmt.Printf("Could not parse Workers: %s\n", err)
+		os.Exit(1)
+	}
+
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
 
-	// RFC: this should return the server listen ports
 	repDataObj := tcpObj.StartMeasurement(reqJson)
-	fmt.Println("\n\n-------------Client received (UDP) Measurement_Start_reply ------------- \n", repDataObj)
+	fmt.Println("\n\n------------- Client received (UDP) Measurement_Start_reply ------------- \n", repDataObj)
 
 	if msmtStorageInited == false {
 		msmtIdStorage = make(map[string]string)
 		msmtStorageInited = true
 	}
 
-	msmtIdStorage[repDataObj.Measurement_id] = "udp-throughput"
+	msmtIdStorage["udp-throughput1"] = repDataObj.Measurement_id
+
 	fmt.Println("\nWE ARE NOW READY TO START WITH THE UDP MSMT")
 
-	// RFC: this should return the server listen ports
+	udpThroughput.NewUdpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh)
 
-	/* TODO: 
-	- UdpThroughput call
-	- UDP oop approach
-	*/
+	fmt.Println("\n\n---------- UDP MSMT is now running ---------- ")
+
+	manageUdpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
 }
+
+
+func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
+	fmt.Println("\n Dummy manageUdpMsmt here!")
+}
+
+
+
+
 
 func constructMeasurementObj(name string, msmtType string) *shared.MeasurementObj {
 	MsmtObj := new(shared.MeasurementObj)

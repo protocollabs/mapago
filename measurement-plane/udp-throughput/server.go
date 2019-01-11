@@ -49,7 +49,7 @@ func NewUdpThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared
 	udpMsmt.fTsStorage = make(map[string]string)
 	udpMsmt.lTsStorage = make(map[string]string)
 
-	fmt.Println("\nClient request is: ", msmtStartReq)
+	fmt.Println("\nClient UDP request is: ", msmtStartReq)
 
 	udpMsmt.numStreams, err = strconv.Atoi(msmtStartReq.Measurement.Configuration.Worker)
 	if err != nil {

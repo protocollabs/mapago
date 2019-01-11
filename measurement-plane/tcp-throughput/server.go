@@ -49,7 +49,7 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	tcpMsmt.fTsStorage = make(map[string]string)
 	tcpMsmt.lTsStorage = make(map[string]string)
 
-	fmt.Println("\nClient request is: ", msmtStartReq)
+	fmt.Println("\nClient TCP request is: ", msmtStartReq)
 
 	tcpMsmt.numStreams, err = strconv.Atoi(msmtStartReq.Measurement.Configuration.Worker)
 	if err != nil {
