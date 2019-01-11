@@ -146,6 +146,8 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 				os.Exit(1)
 			}
 
+			fmt.Println("\nudp server worker close here")
+
 			if cmd != "close" {
 				fmt.Printf("Wrong cmd: Looking for close cmd")
 				os.Exit(1)
@@ -155,16 +157,23 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 			udpConn.Close()
 			return
 		default:
+
+			// debug fmt.Println("\nright before read from udp")
 			bytes, cltAddr, error := udpConn.ReadFromUDP(message)
 			if error != nil {
 				fmt.Printf("Cannot read: %s\n", error)
 				os.Exit(1)
 			}
+			
+			// debug fmt.Println("\nright after read from udp")
+			
 
 			if cltAddrExists == false {
 				fmt.Println("\nConnection from: ", cltAddr)
 				cltAddrExists = true
 			}
+
+			fmt.Println("\nudp server worker data here")
 
 			udpMsmt.writeByteStorage(stream, uint64(bytes))
 
@@ -227,8 +236,12 @@ func (udpMsmt *UdpThroughputMsmt) CloseConn() {
 	var msmtData map[string]string
 
 	for i := 0; i < udpMsmt.numStreams; i++ {
+		fmt.Println("\n!!!!close conn func udp here")
+
 		udpMsmt.closeConnCh <- "close"
 	}
+
+	fmt.Println("\nhello2")
 
 	msmtReply := new(shared.ChMsmt2Ctrl)
 	msmtReply.Status = "ok"

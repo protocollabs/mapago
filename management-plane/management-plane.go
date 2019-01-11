@@ -69,13 +69,15 @@ func constructMsmtId(cltAddr string) string {
 }
 
 func HandleMsmtStopReq(msmtId string) {
-	fmt.Printf("\nMsmtStartReq called!!")
+	fmt.Printf("\nMsmtStopReq called!!")
 
 	msmtEntry, exists := msmtStorage[msmtId]
 	if exists == false {
 		fmt.Printf("\nmsmtEntry for msmtId NOT in storage")
 		os.Exit(1)
 	}
+
+	fmt.Println("\nhandle msmst stop req here")
 
 	switch msmstObj := msmtEntry.MsmtObj.(type) {
 	case *tcpThroughput.TcpMsmtObj:

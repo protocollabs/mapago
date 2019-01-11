@@ -261,7 +261,7 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
 	
-	if val, ok := idStorage["udp-id"]; ok {
+	if val, ok := idStorage["tcp-id"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
@@ -352,7 +352,7 @@ func sendUdpMsmtInfoRequest(addr string, port int, callSize int) {
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_INFO_REQUEST
 	
-	if val, ok := idStorage["udp-id"]; ok {
+	if val, ok := idStorage["tcp-id"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
@@ -372,7 +372,7 @@ func sendUdpMsmtInfoRequest(addr string, port int, callSize int) {
 	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
 
 	repDataObj := tcpObj.GetMeasurementInfo(reqJson)
-	fmt.Println("\n\n------------- Client received (TCP) Measurement_Info_reply ------------- \n", repDataObj)
+	fmt.Println("\n\n------------- Client received (UDP) Measurement_Info_reply ------------- \n", repDataObj)
 }
 
 func sendUdpMsmtStopRequest(addr string, port int, callSize int) {
@@ -382,7 +382,7 @@ func sendUdpMsmtStopRequest(addr string, port int, callSize int) {
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_STOP_REQUEST
 	
-	if val, ok := idStorage["udp-id"]; ok {
+	if val, ok := idStorage["tcp-id"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
@@ -426,8 +426,8 @@ func runUdpCtrlClient(addr string, port int, callSize int, msmtType string) {
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.INFO_REQUEST
 
-	idStorage["udp-id"] = shared.ConstructId()
-	reqDataObj.Id = idStorage["udp-id"]
+	idStorage["tcp-id"] = shared.ConstructId()
+	reqDataObj.Id = idStorage["tcp-id"]
 
 	reqDataObj.Seq = "0"
 	reqDataObj.Ts = shared.ConvCurrDateToStr()

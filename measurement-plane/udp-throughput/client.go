@@ -44,6 +44,7 @@ func udpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string)
 			}
 		default:
 			_, err := conn.Write(buf)
+			
 			if err != nil {
 				fmt.Printf("\nWrite error: %s", err)
 				os.Exit(1)
