@@ -119,10 +119,10 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 			tcpMsmt.usedPorts = append(tcpMsmt.usedPorts, port)
 			goHeartbeatCh <- true
 			break
-		} else {
-			// debug fmt.Printf("\nCannot listen on addr: %s\n", listen)
-			port++
 		}
+
+		// debug fmt.Printf("\nCannot listen on addr: %s\n", listen)
+		port++
 	}
 
 	conn, error := listener.AcceptTCP()
