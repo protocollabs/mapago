@@ -17,6 +17,10 @@ type TcpMsmtObj struct {
 	msmtId           string
 	byteStorage      map[string]uint64
 	byteStorageMutex sync.RWMutex
+	fTsStorage       map[string]string
+	fTsStorageMutex  sync.RWMutex
+	lTsStorage       map[string]string
+	lTsStorageMutex  sync.RWMutex
 
 	/*
 		- this attribute can be used by start() to RECEIVE cmd from managementplane
@@ -42,6 +46,8 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	tcpMsmt := new(TcpMsmtObj)
 
 	tcpMsmt.byteStorage = make(map[string]uint64)
+	tcpMsmt.fTsStorage = make(map[string]string)
+	tcpMsmt.lTsStorage = make(map[string]string)
 
 	fmt.Println("\nClient request is: ", msmtStartReq)
 
@@ -100,6 +106,7 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 
 func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int) {
 	var listener *net.TCPListener
+	fTsExists := false
 	stream := "stream" + strconv.Itoa(streamIndex)
 	fmt.Printf("\n%s is here", stream)
 
@@ -158,8 +165,45 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 			}
 
 			tcpMsmt.writeByteStorage(stream, uint64(bytes))
+
+			if fTsExists == false {
+				fTs := shared.ConvCurrDateToStr()
+				tcpMsmt.writefTsStorage(stream, fTs)
+				fTsExists = true
+			}
+
+			lTs := shared.ConvCurrDateToStr()
+			tcpMsmt.writelTsStorage(stream, lTs)
 		}
 	}
+}
+
+func (tcpMsmt *TcpMsmtObj) writefTsStorage(stream string, ts string) {
+	tcpMsmt.fTsStorageMutex.Lock()
+	tcpMsmt.fTsStorage[stream] = ts
+	tcpMsmt.fTsStorageMutex.Unlock()
+}
+
+func (tcpMsmt *TcpMsmtObj) readfTsStorage(stream string) string {
+	tcpMsmt.fTsStorageMutex.RLock()
+	ts := tcpMsmt.fTsStorage[stream]
+	tcpMsmt.fTsStorageMutex.RUnlock()
+
+	return ts
+}
+
+func (tcpMsmt *TcpMsmtObj) writelTsStorage(stream string, ts string) {
+	tcpMsmt.lTsStorageMutex.Lock()
+	tcpMsmt.lTsStorage[stream] = ts
+	tcpMsmt.lTsStorageMutex.Unlock()
+}
+
+func (tcpMsmt *TcpMsmtObj) readlTsStorage(stream string) string {
+	tcpMsmt.lTsStorageMutex.RLock()
+	ts := tcpMsmt.lTsStorage[stream]
+	tcpMsmt.lTsStorageMutex.RUnlock()
+
+	return ts
 }
 
 func (tcpMsmt *TcpMsmtObj) writeByteStorage(stream string, bytes uint64) {
@@ -213,10 +257,8 @@ func (tcpMsmt *TcpMsmtObj) GetMsmtInfo() {
 		// i.e. read stream bytes, timestamp calculation
 		dataElement := new(shared.DataResultObj)
 		dataElement.Received_bytes = strconv.Itoa(int(bytes))
-
-		// these are dummy values
-		dataElement.Timestamp_first = shared.ConvCurrDateToStr()
-		dataElement.Timestamp_last = shared.ConvCurrDateToStr()
+		dataElement.Timestamp_first = tcpMsmt.readfTsStorage(stream)
+		dataElement.Timestamp_last = tcpMsmt.readlTsStorage(stream)
 
 		// add single DataElement to slice
 		msmtData = append(msmtData, *dataElement)
