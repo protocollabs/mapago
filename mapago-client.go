@@ -76,7 +76,7 @@ func runTcpCtrlClient(addr string, port int, callSize int, msmtType string) {
 	// debug fmt.Printf("\ninfo request JSON is: % s", reqJson)
 
 	repDataObj := tcpObj.StartDiscovery(reqJson)
-	fmt.Println("\nClient received Info_request: ", repDataObj)
+	fmt.Println("\n-------------Client received Info_request ------------- \n", repDataObj)
 
 	err := validateDiscovery(reqDataObj, repDataObj)
 	if err != nil {
@@ -129,7 +129,7 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	// debug fmt.Printf("\nmsmt start request JSON is: % s", reqJson)
 
 	repDataObj := tcpObj.StartMeasurement(reqJson)
-	fmt.Println("\n\nClient received (TCP) Measurement_Start_reply: ", repDataObj)
+	fmt.Println("\n\n------------- Client received (TCP) Measurement_Start_reply ------------- \n", repDataObj)
 
 	if msmtStorageInited == false {
 		msmtIdStorage = make(map[string]string)
@@ -139,7 +139,8 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	msmtIdStorage["tcp-throughput1"] = repDataObj.Measurement_id
 
 	// debug fmt.Println("\nWE ARE NOW READY TO START WITH THE TCP MSMT")
-	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, &wg, closeConnCh)
+
+	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh)
 
 	fmt.Println("\n\n---------- TCP MSMT is now running ---------- ")
 	
@@ -166,6 +167,8 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 			- i.e. construct Msmt_info_Req Message
 			- send an wait for reply 
 			*/
+			sendTcpMsmtInfoRequest(addr, port, callSize)
+
 			tMsmtInfoReq.Reset(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
 
 		case <-tMsmtStopReq.C:
@@ -186,6 +189,36 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 			return
 		}
 	}
+}
+
+func sendTcpMsmtInfoRequest(addr string, port int, callSize int) {
+	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtInfoReqConn", addr, port, callSize)
+
+	// TODO: build json "dummy" message
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.MEASUREMENT_INFO_REQUEST
+	
+	if val, ok := idStorage["tcp-id"]; ok {
+		reqDataObj.Id = val
+	} else {
+		fmt.Println("\nFound not the id")
+	}
+	
+	// TODO: hardcoded atm
+	reqDataObj.Seq = "3"
+	reqDataObj.Secret = "fancySecret"
+
+	if val, ok := msmtIdStorage["tcp-throughput1"]; ok {
+		reqDataObj.Measurement_id = val
+	} else {
+		fmt.Println("\nFound not the measurement id for tcp throughput")
+	}
+
+	reqJson := shared.ConvDataStructToJson(reqDataObj)
+	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
+
+	repDataObj := tcpObj.GetMeasurementInfo(reqJson)
+	fmt.Println("\n\n------------- Client received (TCP) Measurement_Info_reply ------------- \n", repDataObj)
 }
 
 
@@ -217,12 +250,14 @@ func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
 	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
 
 	repDataObj := tcpObj.StopMeasurement(reqJson)
-	fmt.Println("\n\nClient received (TCP) Measurement_Stop_reply: ", repDataObj)
+	fmt.Println("\n\n------------- Client received (TCP) Measurement_Stop_reply ------------- \n", repDataObj)
 }
 
 
 // this starts the UDP throughput measurement
 // underlying control channel is TCP based
+// RFC: The underlying CONTROL CHANNEL IS HERE TCP
+// WE HAVE TO CHANGE THAT
 func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	tcpObj := clientProtos.NewTcpObj("UdpThroughputMsmtConn", addr, port, callSize)
 
@@ -247,8 +282,9 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
 
+	// RFC: this should return the server listen ports
 	repDataObj := tcpObj.StartMeasurement(reqJson)
-	fmt.Println("\n\nClient received (UDP) Measurement_Start_reply: ", repDataObj)
+	fmt.Println("\n\n-------------Client received (UDP) Measurement_Start_reply ------------- \n", repDataObj)
 
 	if msmtStorageInited == false {
 		msmtIdStorage = make(map[string]string)
@@ -257,6 +293,8 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 
 	msmtIdStorage[repDataObj.Measurement_id] = "udp-throughput"
 	fmt.Println("\nWE ARE NOW READY TO START WITH THE UDP MSMT")
+
+	// RFC: this should return the server listen ports
 
 	/* TODO: 
 	- UdpThroughput call

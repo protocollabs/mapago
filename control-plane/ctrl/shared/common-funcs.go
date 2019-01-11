@@ -10,11 +10,12 @@ import "bytes"
 import "time"
 import "runtime"
 import "path/filepath"
+import "strconv"
 
 const DATE_FMT = "2006-01-02 15:04:05.000000000"
 
 func ConvJsonToDataStruct(jsonData []byte) *DataObj {
-	fmt.Printf("\n Converting json data: % x", jsonData)
+	// debug fmt.Printf("\n Converting json data: % x", jsonData)
 
 	dataObj := new(DataObj)
 
@@ -56,6 +57,7 @@ func ConvDataStructToJson(data *DataObj) []byte {
 	return resB
 }
 
+// RFC: the measurement listening port must not configured here
 func ConstructConfiguration(configDir string) *ConfigurationObj {
 	ConfObj := new(ConfigurationObj)
 
@@ -70,7 +72,6 @@ func ConstructConfiguration(configDir string) *ConfigurationObj {
 		fmt.Printf("\nConfig not present! Use default one!")
 
 		ConfObj.Worker = "1"
-		ConfObj.Port = "7000"
 		ConfObj.Listen_addr = "127.0.0.1"
 		ConfObj.Call_size = "64768"
 
@@ -117,6 +118,28 @@ func ConstructId() string {
 func ConvCurrDateToStr() string {
 	dateStr := time.Now().Format(DATE_FMT)
 	return dateStr
+}
+
+func ConvIntSliceToStr(slice []int) string {
+	str := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(slice)), ","), "[]")
+	return str
+}
+
+func ConvStrToIntSlice(ports string) []int {
+	var slice []int
+	strSlice := strings.Split(ports, ",")
+
+	for _, val := range strSlice {
+		intVal, err := strconv.Atoi(val)
+		if err != nil {
+			fmt.Printf("Cannot conv to int %s\n", err)
+			os.Exit(1)
+		}
+
+		slice = append(slice, intVal)
+	}
+
+	return slice
 }
 
 func ConvStrDateToNatDate(date string) time.Time {

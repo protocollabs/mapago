@@ -11,6 +11,7 @@ import "github.com/monfron/mapago/measurement-plane/udp-throughput"
 
 var msmtStorage map[string]*shared.MsmtStorageEntry
 var mapInited = false
+var startPort = 7000
 
 func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj, cltAddr string) {
 	switch msmtStartReq.Measurement.Name {
@@ -27,7 +28,7 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 			mapInited = true
 		}
 
-		tcpMsmtObj := tcpThroughput.NewTcpMsmtObj(msmtCh, ctrlCh, msmtStartReq, msmtId)
+		tcpMsmtObj := tcpThroughput.NewTcpMsmtObj(msmtCh, ctrlCh, msmtStartReq, msmtId, startPort)
 
 		msmtEntry := new(shared.MsmtStorageEntry)
 		msmtEntry.MsmtCh = msmtCh
@@ -35,8 +36,6 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 		msmtStorage[msmtId] = msmtEntry
 
 		fmt.Println("\nmsmtStorage content: ", msmtStorage)
-
-		tcpMsmtObj.Start()
 
 	case "udp-throughput":
 		/*
@@ -50,41 +49,14 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 			mapInited = true
 		}
 
+		udpMsmt := udpThroughput.NewUdpThroughputMsmt(msmtCh, ctrlCh, msmtStartReq, msmtId, startPort)
+
 		msmtEntry := new(shared.MsmtStorageEntry)
 		msmtEntry.MsmtCh = msmtCh
-		// cannot be used ATM : WIP msmtEntry.MsmtObj = nil
+		msmtEntry.MsmtObj = udpMsmt
 		msmtStorage[msmtId] = msmtEntry
+
 		fmt.Println("\nmsmtStorage content: ", msmtStorage)
-
-		/*
-			POSSIBLE BLOCKING CAUSE
-			we have to call it via goroutine asynchronously
-			or we stay within the for loop and block on the channel
-			and cannot receive anything else
-		*/
-		go udpThroughput.NewUdpMsmt(msmtCh, ctrlCh, msmtStartReq)
-
-		/*
-			POSSIBLE BLOCKING CAUSE
-			send blocks until corresponding read is called
-			PROBLEM: this function is blocked => the callee is blocked aswell
-			=> connClose() and HandleConn() cannot be called => no further requests
-		*/
-
-		mgmtCmd := new(shared.ChMgmt2Msmt)
-		mgmtCmd.Cmd = "Msmt_start"
-		mgmtCmd.MsmtId = msmtId
-		msmtCh <- *mgmtCmd
-
-	case "quic-throughput":
-		fmt.Println("\nStarting QUIC throughput module")
-
-	case "udp-ping":
-		fmt.Println("\nStarting UDP ping module")
-
-	default:
-		fmt.Printf("Unknown measurement module")
-		os.Exit(1)
 	}
 }
 
@@ -96,11 +68,6 @@ func constructMsmtId(cltAddr string) string {
 	return msmtId
 }
 
-/*
-- TODO: manager sendet nicht über channel in tcpworker
-- ruft einfach tcpThorughput.stop() auf
-- dieser sendet dann an TcpWorker über Channel
-*/
 func HandleMsmtStopReq(msmtId string) {
 	fmt.Printf("\nMsmtStartReq called!!")
 
@@ -113,7 +80,31 @@ func HandleMsmtStopReq(msmtId string) {
 	switch msmstObj := msmtEntry.MsmtObj.(type) {
 	case *tcpThroughput.TcpMsmtObj:
 		msmstObj.CloseConn()
-	// TODO	case *udpThroughput.UdpMsmtObj:
+	case *udpThroughput.UdpThroughputMsmt:
+		msmstObj.CloseConn()
+	// TODO	case *quicThroughput.QuicMsmtObj:
+	default:
+		fmt.Printf("Type assertion failed: Unknown msmt type")
+		os.Exit(1)
+	}
+}
+
+func HandleMsmtInfoReq(msmtId string) {
+	fmt.Printf("\nMsmtInfoReq called!!")
+
+	msmtEntry, exists := msmtStorage[msmtId]
+	if exists == false {
+		fmt.Printf("\nmsmtEntry for msmtId NOT in storage")
+		os.Exit(1)
+	}
+	// debug
+	fmt.Println("\n I found the appropriate msmt obj: ", msmtEntry)
+
+	switch msmstObj := msmtEntry.MsmtObj.(type) {
+	case *tcpThroughput.TcpMsmtObj:
+		msmstObj.GetMsmtInfo()
+	case *udpThroughput.UdpThroughputMsmt:
+		msmstObj.GetMsmtInfo()
 	// TODO	case *quicThroughput.QuicMsmtObj:
 	default:
 		fmt.Printf("Type assertion failed: Unknown msmt type")

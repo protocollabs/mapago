@@ -3,25 +3,24 @@ package tcpThroughput
 import "fmt"
 import "os"
 import "net"
-import "time"
 import "strconv"
+import "sync"
 import "github.com/monfron/mapago/control-plane/ctrl/shared"
 
 var UPDATE_INTERVAL = 5
 
 type TcpMsmtObj struct {
-	numStreams int
-	// TODO: in the future the server should define which Port to use
-	startPort  int
-	callSize   int
-	listenAddr string
-	msmtId     string
-
-	/*
-		- this attribute can be used by start() to RECEIVE result from TcpServerWorker
-		- i.e. => select => msmtResult := <-msmtResultCh
-	*/
-	msmtResultCh chan shared.ChMsmtResult
+	numStreams       int
+	usedPorts        []int
+	callSize         int
+	listenAddr       string
+	msmtId           string
+	byteStorage      map[string]uint64
+	byteStorageMutex sync.RWMutex
+	fTsStorage       map[string]string
+	fTsStorageMutex  sync.RWMutex
+	lTsStorage       map[string]string
+	lTsStorageMutex  sync.RWMutex
 
 	/*
 		- this attribute can be used by start() to RECEIVE cmd from managementplane
@@ -39,26 +38,22 @@ type TcpMsmtObj struct {
 	closeConnCh chan interface{}
 }
 
-func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj, msmtId string) *TcpMsmtObj {
+func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.DataObj, msmtId string, startPort int) *TcpMsmtObj {
 	var err error
 	var msmtData map[string]string
 	heartbeatCh := make(chan bool)
-	resultCh := make(chan shared.ChMsmtResult)
 	closeCh := make(chan interface{})
-
 	tcpMsmt := new(TcpMsmtObj)
+
+	tcpMsmt.byteStorage = make(map[string]uint64)
+	tcpMsmt.fTsStorage = make(map[string]string)
+	tcpMsmt.lTsStorage = make(map[string]string)
 
 	fmt.Println("\nClient request is: ", msmtStartReq)
 
 	tcpMsmt.numStreams, err = strconv.Atoi(msmtStartReq.Measurement.Configuration.Worker)
 	if err != nil {
 		fmt.Printf("\nCannot convert worker value: %s", err)
-		os.Exit(1)
-	}
-
-	tcpMsmt.startPort, err = strconv.Atoi(msmtStartReq.Measurement.Configuration.Port)
-	if err != nil {
-		fmt.Printf("\nCannot convert port value: %s", err)
 		os.Exit(1)
 	}
 
@@ -71,17 +66,12 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	// TODO: this should be the id sent to client
 	tcpMsmt.msmtId = msmtId
 	tcpMsmt.listenAddr = msmtStartReq.Measurement.Configuration.Listen_addr
-	tcpMsmt.msmtResultCh = resultCh
 	tcpMsmt.msmtMgmt2MsmtCh = msmtCh
 	tcpMsmt.msmt2CtrlCh = ctrlCh
 	tcpMsmt.closeConnCh = closeCh
 
-	fmt.Printf("\n\nTCP Msmt: Client wants %d workers to be started from start port %d!", tcpMsmt.numStreams, tcpMsmt.startPort)
-
 	for c := 1; c <= tcpMsmt.numStreams; c++ {
-		fmt.Printf("\n\nStarting stream %d on port %d", c, tcpMsmt.startPort)
-		go tcpMsmt.tcpServerWorker(resultCh, heartbeatCh, tcpMsmt.startPort, closeCh)
-		tcpMsmt.startPort++
+		go tcpMsmt.tcpServerWorker(closeCh, heartbeatCh, startPort, c)
 	}
 
 	for c := 1; c <= tcpMsmt.numStreams; c++ {
@@ -91,15 +81,16 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 		}
 	}
 
-	fmt.Println("\n\nGoroutines ok: We are save to send a reply!")
+	fmt.Println("\n\nPorts used by TCP module: ", tcpMsmt.usedPorts)
 
-	// send reply to control plane
 	msmtReply := new(shared.ChMsmt2Ctrl)
 	msmtReply.Status = "ok"
 
 	msmtData = make(map[string]string)
 	msmtData["msmtId"] = tcpMsmt.msmtId
 	msmtData["msg"] = "all modules running"
+	msmtData["usedPorts"] = shared.ConvIntSliceToStr(tcpMsmt.usedPorts)
+
 	msmtReply.Data = msmtData
 
 	/*
@@ -113,31 +104,33 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	return tcpMsmt
 }
 
-func (tcpMsmt *TcpMsmtObj) tcpServerWorker(resCh chan<- shared.ChMsmtResult, goHeartbeatCh chan<- bool, port int, closeCh <-chan interface{}) {
+func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int) {
+	var listener *net.TCPListener
+	fTsExists := false
+	stream := "stream" + strconv.Itoa(streamIndex)
+	fmt.Printf("\n%s is here", stream)
 
-	/*
-		- we can not do that: listen := tcpMsmt.listenAddr + ":" + strconv.Itoa(tcpMsmt.startPort)
-		- or we get a race condition :(
-	*/
-	listen := tcpMsmt.listenAddr + ":" + strconv.Itoa(port)
+	for {
+		listen := tcpMsmt.listenAddr + ":" + strconv.Itoa(port)
 
-	addr, error := net.ResolveTCPAddr("tcp", listen)
-	if error != nil {
-		fmt.Printf("Cannot parse \"%s\": %s\n", listen, error)
-		goHeartbeatCh <- false
-		os.Exit(1)
+		addr, error := net.ResolveTCPAddr("tcp", listen)
+		if error != nil {
+			fmt.Printf("Cannot parse \"%s\": %s\n", listen, error)
+			goHeartbeatCh <- false
+			os.Exit(1)
+		}
+
+		listener, error = net.ListenTCP("tcp", addr)
+		if error == nil {
+			// debug fmt.Printf("\nCan listen on addr: %s\n", listen)
+			tcpMsmt.usedPorts = append(tcpMsmt.usedPorts, port)
+			goHeartbeatCh <- true
+			break
+		}
+
+		// debug fmt.Printf("\nCannot listen on addr: %s\n", listen)
+		port++
 	}
-
-	fmt.Println("\nlistening on addr : ", addr)
-
-	listener, error := net.ListenTCP("tcp", addr)
-	if error != nil {
-		fmt.Printf("Cannot listen: %s\n", error)
-		goHeartbeatCh <- false
-		os.Exit(1)
-	}
-
-	goHeartbeatCh <- true
 
 	conn, error := listener.AcceptTCP()
 	if error != nil {
@@ -148,8 +141,6 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(resCh chan<- shared.ChMsmtResult, goH
 	fmt.Printf("Connection from %s\n", conn.RemoteAddr())
 	message := make([]byte, tcpMsmt.callSize, tcpMsmt.callSize)
 
-	var bytes uint64 = 0
-	start := time.Now()
 	for {
 		select {
 		case data := <-closeCh:
@@ -163,38 +154,71 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(resCh chan<- shared.ChMsmtResult, goH
 				fmt.Printf("Wrong cmd: Looking for close cmd")
 				os.Exit(1)
 			}
-			fmt.Println("\nClosing conn")
 			listener.Close()
 			conn.Close()
 			return
 		default:
-			n1, error := conn.Read(message)
+			bytes, error := conn.Read(message)
 			if error != nil {
 				fmt.Printf("Cannot read: %s\n", error)
 				os.Exit(1)
 			}
 
-			/*
-				- TODO: bytes wird klassen attribut
-				- man muss nicht über channel darauf zugreifen
-				- wird atomarer datentype
-			*/
-			bytes += uint64(n1)
+			tcpMsmt.writeByteStorage(stream, uint64(bytes))
 
-			/*
-				- TODO: Kein Zeitinterval / Messung
-				- Schreibe in Variable
-				- atomare variable
-			*/
-			elapsed := time.Since(start)
-			if elapsed.Seconds() > float64(UPDATE_INTERVAL) {
-				// this result is sent to start() => select => msmtResult := <-msmtResultCh
-				resCh <- shared.ChMsmtResult{Bytes: bytes, Time: elapsed.Seconds()}
-				start = time.Now()
-				bytes = 0
+			if fTsExists == false {
+				fTs := shared.ConvCurrDateToStr()
+				tcpMsmt.writefTsStorage(stream, fTs)
+				fTsExists = true
 			}
+
+			lTs := shared.ConvCurrDateToStr()
+			tcpMsmt.writelTsStorage(stream, lTs)
 		}
 	}
+}
+
+func (tcpMsmt *TcpMsmtObj) writefTsStorage(stream string, ts string) {
+	tcpMsmt.fTsStorageMutex.Lock()
+	tcpMsmt.fTsStorage[stream] = ts
+	tcpMsmt.fTsStorageMutex.Unlock()
+}
+
+func (tcpMsmt *TcpMsmtObj) readfTsStorage(stream string) string {
+	tcpMsmt.fTsStorageMutex.RLock()
+	ts := tcpMsmt.fTsStorage[stream]
+	tcpMsmt.fTsStorageMutex.RUnlock()
+
+	return ts
+}
+
+func (tcpMsmt *TcpMsmtObj) writelTsStorage(stream string, ts string) {
+	tcpMsmt.lTsStorageMutex.Lock()
+	tcpMsmt.lTsStorage[stream] = ts
+	tcpMsmt.lTsStorageMutex.Unlock()
+}
+
+func (tcpMsmt *TcpMsmtObj) readlTsStorage(stream string) string {
+	tcpMsmt.lTsStorageMutex.RLock()
+	ts := tcpMsmt.lTsStorage[stream]
+	tcpMsmt.lTsStorageMutex.RUnlock()
+
+	return ts
+}
+
+func (tcpMsmt *TcpMsmtObj) writeByteStorage(stream string, bytes uint64) {
+	tcpMsmt.byteStorageMutex.Lock()
+	tcpMsmt.byteStorage[stream] = tcpMsmt.byteStorage[stream] + bytes
+	tcpMsmt.byteStorageMutex.Unlock()
+}
+
+// we can precise which key to address
+func (tcpMsmt *TcpMsmtObj) readByteStorage(stream string) uint64 {
+	tcpMsmt.byteStorageMutex.RLock()
+	bytes := tcpMsmt.byteStorage[stream]
+	tcpMsmt.byteStorageMutex.RUnlock()
+
+	return bytes
 }
 
 func (tcpMsmt *TcpMsmtObj) CloseConn() {
@@ -218,32 +242,32 @@ func (tcpMsmt *TcpMsmtObj) CloseConn() {
 	}()
 }
 
-/*
-- TODO: This func will be removed
-- Msmt_Info: just read the atomic class attribut => this remove go + select
-- Next commit!
-*/
-func (tcpMsmt *TcpMsmtObj) Start() {
-	numValCtr := 0
-	var accumulated uint64
+func (tcpMsmt *TcpMsmtObj) GetMsmtInfo() {
+	var msmtData []shared.DataResultObj
+
+	msmtReply := new(shared.ChMsmt2Ctrl)
+	msmtReply.Status = "ok"
+
+	// prepare msmtReply.Data
+	for c := 1; c <= tcpMsmt.numStreams; c++ {
+		stream := "stream" + strconv.Itoa(c)
+		bytes := tcpMsmt.readByteStorage(stream)
+
+		// create single data element:
+		// i.e. read stream bytes, timestamp calculation
+		dataElement := new(shared.DataResultObj)
+		dataElement.Received_bytes = strconv.Itoa(int(bytes))
+		dataElement.Timestamp_first = tcpMsmt.readfTsStorage(stream)
+		dataElement.Timestamp_last = tcpMsmt.readlTsStorage(stream)
+
+		// add single DataElement to slice
+		msmtData = append(msmtData, *dataElement)
+		// debug fmt.Println("\nmsmtData is: ", msmtData)
+	}
+
+	msmtReply.Data = msmtData
 
 	go func() {
-		for {
-			// POSSIBLE BLOCKING CAUSE: select blocks until one of its cases can run
-			select {
-			case msmtResult := <-tcpMsmt.msmtResultCh:
-				numValCtr += 1
-				accumulated += msmtResult.Bytes
-
-				if numValCtr == tcpMsmt.numStreams {
-					fmt.Printf("\nGot reply from all %d workers", tcpMsmt.numStreams)
-					mbyte_sec := accumulated / (1000000 * uint64(UPDATE_INTERVAL))
-					println("\nMByte/sec: ", mbyte_sec)
-					// start next measurement burst
-					accumulated = 0
-					numValCtr = 0
-				}
-			}
-		}
+		tcpMsmt.msmt2CtrlCh <- *msmtReply
 	}()
 }

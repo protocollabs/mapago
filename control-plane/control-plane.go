@@ -64,7 +64,7 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 
 		case shared.MEASUREMENT_START_REQUEST:
 			go func() {
-				fmt.Println("\n------------- Measurement Start Request -------------")
+				fmt.Println("\n------------- MEASUREMENT_START_REQUEST -------------")
 
 				/*
 					DISCUSS:
@@ -79,6 +79,7 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 				recvCh := make(chan shared.ChMsmt2Ctrl)
 
 				clientIp := request.ConnObj.DetectRemoteAddr()
+				// RFC: atm the server listen port is advertised by the client
 				managementPlane.HandleMsmtStartReq(recvCh, reqDataObj, clientIp.String())
 
 				/*
@@ -104,7 +105,7 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 		// interaction needed
 		case shared.MEASUREMENT_STOP_REQUEST:
 			go func() {
-				fmt.Println("\n!!!I received a MSMT_STOP_REQ: WIP")
+				fmt.Println("\n------------- MEASUREMENT_STOP_REQUEST -------------")
 
 				recvCh, exists := recvChStorage[reqDataObj.Measurement_id]
 				if exists == false {
@@ -115,7 +116,6 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 				managementPlane.HandleMsmtStopReq(reqDataObj.Measurement_id)
 
 				msmtReply := <-recvCh
-				fmt.Println("\nMsmt reply is: ", msmtReply)
 
 				repDataObj = constructMsmtStopReply(reqDataObj, msmtReply)
 
@@ -124,14 +124,36 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 
 				// Remove recvCh from recvChStorage
 
-				// be ready to receive other requests
 				request.ConnObj.CloseConn()
 				tcpObj.HandleTcpConn(ch)
 			}()
 
 		// interaction needed
 		case shared.MEASUREMENT_INFO_REQUEST:
-			fmt.Println("\nConstruct MEASUREMENT_INFO_REP")
+			go func() {
+				fmt.Println("\n------------- MEASUREMENT_INFO_REQUEST -------------")
+
+				// debug fmt.Println("\nrequest is: ", reqDataObj)
+
+				recvCh, exists := recvChStorage[reqDataObj.Measurement_id]
+				if exists == false {
+					fmt.Printf("\nrecvChEntry NOT in storage")
+					os.Exit(1)
+				}
+
+				managementPlane.HandleMsmtInfoReq(reqDataObj.Measurement_id)
+
+				msmtReply := <-recvCh
+
+				repDataObj = constructMsmtInfoReply(reqDataObj, msmtReply)
+				// debug fmt.Println("\nMsmt Info Reply is: ", repDataObj)
+
+				json := shared.ConvDataStructToJson(repDataObj)
+				request.ConnObj.WriteAnswer(json)
+
+				request.ConnObj.CloseConn()
+				tcpObj.HandleTcpConn(ch)
+			}()
 
 		// not handled atm
 		case shared.TIME_DIFF_REQUEST:
@@ -149,7 +171,7 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 }
 
 func constructInfoReply(reqDataObj *shared.DataObj) *shared.DataObj {
-	fmt.Println("\nConstructing INFO_REP")
+	fmt.Println("\n------------- Constructing INFO_REPLY -------------")
 
 	// construct ID
 	repDataObj := new(shared.DataObj)
@@ -168,7 +190,7 @@ func constructInfoReply(reqDataObj *shared.DataObj) *shared.DataObj {
 }
 
 func constructMsmtStartReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2Ctrl) *shared.DataObj {
-	fmt.Println("\nConstructing MSMT_START_REP")
+	fmt.Println("\n------------- Constructing MSMT_START_REPLY -------------")
 
 	repDataObj := new(shared.DataObj)
 	repDataObj.Type = shared.MEASUREMENT_START_REPLY
@@ -184,12 +206,13 @@ func constructMsmtStartReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2C
 
 	repDataObj.Measurement_id = msmtData["msmtId"]
 	repDataObj.Message = msmtData["msg"]
+	repDataObj.Measurement.Configuration.UsedPorts = msmtData["usedPorts"]
 
 	return repDataObj
 }
 
 func constructMsmtStopReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2Ctrl) *shared.DataObj {
-	fmt.Println("\nConstructing MSMT_START_REP")
+	fmt.Println("\n------------- Constructing MSMT_STOP_REPLY -------------")
 
 	repDataObj := new(shared.DataObj)
 	repDataObj.Type = shared.MEASUREMENT_STOP_REPLY
@@ -207,6 +230,28 @@ func constructMsmtStopReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2Ct
 	repDataObj.Message = msmtData["msg"]
 	// TODO: Include the final measurement result
 
+	return repDataObj
+}
+
+func constructMsmtInfoReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2Ctrl) *shared.DataObj {
+	fmt.Println("\n------------- Constructing MSMT_INFO_REPLY -------------")
+
+	repDataObj := new(shared.DataObj)
+	repDataObj.Type = shared.MEASUREMENT_INFO_REPLY
+	repDataObj.Status = msmtRep.Status
+	repDataObj.Id = ID
+	repDataObj.Seq_rp = reqDataObj.Seq
+
+	msmtData, ok := msmtRep.Data.([]shared.DataResultObj)
+	if ok == false {
+		fmt.Printf("Type assertion failed: Looking for []shared.DataResultObj %t", ok)
+		os.Exit(1)
+	}
+
+	repDataObj.Measurement_id = reqDataObj.Measurement_id
+	repDataObj.Data.DataElement = msmtData
+
+	// TODO: Add the timestamps
 	return repDataObj
 }
 

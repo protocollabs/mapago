@@ -46,7 +46,8 @@ type ChMgmt2Msmt struct {
 }
 
 /*
-reply sent from within the (TCP/UDP/QUIC) measurement module
+- NOTE: DISCONTINUED! This is now only used by the unfinished UDP msmt
+- reply sent from within the (TCP/UDP/QUIC) measurement module
 whats actually received: "i received 666 bytes"
 */
 type ChMsmtResult struct {
@@ -61,23 +62,24 @@ type MsmtStorageEntry struct {
 }
 
 type DataObj struct {
-	Type                 uint64         `json:",omitempty"`
-	Id                   string         `json:",omitempty"`
-	Seq                  string         `json:",omitempty"`
-	Measurement_id       string         `json:",omitempty"`
-	Ts                   string         `json:",omitempty"`
-	Secret               string         `json:",omitempty"`
-	Seq_rp               string         `json:",omitempty"`
-	Arch                 string         `json:",omitempty"`
-	Os                   string         `json:",omitempty"`
-	Info                 string         `json:",omitempty"`
-	Status               string         `json:",omitempty"`
-	Message              string         `json:",omitempty"`
-	Measurement_delay    string         `json:",omitempty"`
-	Measurement_time_max string         `json:",omitempty"`
-	Padding              string         `json:",omitempty"`
-	Modules              string         `json:",omitempty"`
-	Measurement          MeasurementObj `json:",omitempty"`
+	Type                 uint64            `json:",omitempty"`
+	Id                   string            `json:",omitempty"`
+	Seq                  string            `json:",omitempty"`
+	Measurement_id       string            `json:",omitempty"`
+	Ts                   string            `json:",omitempty"`
+	Secret               string            `json:",omitempty"`
+	Seq_rp               string            `json:",omitempty"`
+	Arch                 string            `json:",omitempty"`
+	Os                   string            `json:",omitempty"`
+	Info                 string            `json:",omitempty"`
+	Status               string            `json:",omitempty"`
+	Message              string            `json:",omitempty"`
+	Measurement_delay    string            `json:",omitempty"`
+	Measurement_time_max string            `json:",omitempty"`
+	Padding              string            `json:",omitempty"`
+	Modules              string            `json:",omitempty"`
+	Measurement          MeasurementObj    `json:",omitempty"`
+	Data                 DataCollectionObj `json:",omitempty"`
 
 	/*
 		TODO: how to handle
@@ -89,22 +91,33 @@ type MeasurementObj struct {
 	Name          string           `json:",omitempty"`
 	Type          string           `json:",omitempty"`
 	Configuration ConfigurationObj `json:",omitempty"`
-	// TODO: Include the actual measurement result
 }
 
 type ConfigurationObj struct {
 	Worker          string `json:",omitempty"`
 	Payload_pattern string `json:",omitempty"`
-	Port            string `json:",omitempty"`
-	Rate            string `json:",omitempty"`
-	Rate_burst      string `json:",omitempty"`
-	Packet_length   string `json:",omitempty"`
-	Dscp            string `json:",omitempty"`
-	Ttl             string `json:",omitempty"`
-	Output_format   string `json:",omitempty"`
-	Tx_method       string `json:",omitempty"`
+	// RFC: the port is now selected by the server
+	// remove it from the configuration
+	UsedPorts     string `json:",omitempty"`
+	Rate          string `json:",omitempty"`
+	Rate_burst    string `json:",omitempty"`
+	Packet_length string `json:",omitempty"`
+	Dscp          string `json:",omitempty"`
+	Ttl           string `json:",omitempty"`
+	Output_format string `json:",omitempty"`
+	Tx_method     string `json:",omitempty"`
 
 	// useful other fields?!
 	Listen_addr string `json:",omitempty"`
 	Call_size   string `json:",omitempty"`
+}
+
+type DataCollectionObj struct {
+	DataElement []DataResultObj
+}
+
+type DataResultObj struct {
+	Timestamp_first string `json:",omitempty"`
+	Timestamp_last  string `json:",omitempty"`
+	Received_bytes  string `json:",omitempty"`
 }
