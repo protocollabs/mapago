@@ -163,11 +163,6 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 		select {
 		case <-tMsmtInfoReq.C:
 			fmt.Println("\nIts time to send a Msmt_Info_Req")
-			/*
-			- TODO: implement Msmt_info_req logic
-			- i.e. construct Msmt_info_Req Message
-			- send an wait for reply 
-			*/
 			sendTcpMsmtInfoRequest(addr, port, callSize)
 
 			tMsmtInfoReq.Reset(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
@@ -310,12 +305,53 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 
 
 func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
-	fmt.Println("\n Dummy manageUdpMsmt here!")
+	tMsmtInfoReq := time.NewTimer(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
+	/* TODO: nicht zeitgetriggert sonder daten getriggert
+	wenn letzte daten erhalten => close conns
+	würde Probleme geben bei starker packet verlustrate
+	wir sagen 10s und während dessen empfangen wir nichts
+	dann bauen wir schon verbindung ab => client ist immer noch im retransmit
+	*/
+	tMsmtStopReq := time.NewTimer(time.Duration(MSMT_STOP_INTERVAL) * time.Second)
+
+	for {
+		select {
+		case <-tMsmtInfoReq.C:
+			fmt.Println("\nIts time to send a Msmt_Info_Req")
+			// TODO
+			sendUdpMsmtInfoRequest(addr, port, callSize)
+
+			tMsmtInfoReq.Reset(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
+
+		case <-tMsmtStopReq.C:
+			fmt.Println("\nIts time to finish the measurement! close all conns")
+		
+			tMsmtInfoReq.Stop()
+
+			for i := 0; i < workers; i++ {
+				closeConnCh<- "close"
+			}
+
+			wg.Wait()
+			
+			// all connections are now terminated: server should shut down aswell
+			// TODO
+			sendUdpMsmtStopRequest(addr, port, callSize)
+
+			fmt.Println("\nAll tcp workers are now finished")
+			return
+		}
+	}
+
 }
 
+func sendUdpMsmtInfoRequest(addr string, port int, callSize int) {
+	fmt.Println("\nDummy sendUdpMsmtInfoRequest")
+}
 
-
-
+func sendUdpMsmtStopRequest(addr string, port int, callSize int) {
+	fmt.Println("\nDummy sendUdpMsmtStopRequest")
+}
 
 func constructMeasurementObj(name string, msmtType string) *shared.MeasurementObj {
 	MsmtObj := new(shared.MeasurementObj)
