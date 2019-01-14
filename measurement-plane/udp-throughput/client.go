@@ -17,7 +17,7 @@ func NewUdpMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataO
 
 	for _, port := range serverPorts {
 		listen := lAddr + ":" + strconv.Itoa(port)
-		// debug fmt.Println("\nCommunicating with: ", listen)
+		fmt.Println("\nCommunicating with: ", listen)
 		wg.Add(1)
 		go udpClientWorker(listen, wg, closeConnCh)
 	}
@@ -44,7 +44,7 @@ func udpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string)
 			}
 		default:
 			_, err := conn.Write(buf)
-			
+
 			if err != nil {
 				fmt.Printf("\nWrite error: %s", err)
 				os.Exit(1)

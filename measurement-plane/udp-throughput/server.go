@@ -133,8 +133,6 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 		port++
 	}
 
-	// TODO maybe that does not work at that point
-	// fmt.Printf("Connection from %s\n", udpConn.RemoteAddr())
 	message := make([]byte, udpMsmt.callSize, udpMsmt.callSize)
 
 	for {
@@ -164,16 +162,15 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 				fmt.Printf("Cannot read: %s\n", error)
 				os.Exit(1)
 			}
-			
+
 			// debug fmt.Println("\nright after read from udp")
-			
 
 			if cltAddrExists == false {
 				fmt.Println("\nConnection from: ", cltAddr)
 				cltAddrExists = true
 			}
 
-			fmt.Println("\nudp server worker data here")
+			// debug fmt.Println("\nudp server worker data here")
 
 			udpMsmt.writeByteStorage(stream, uint64(bytes))
 
