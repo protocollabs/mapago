@@ -332,16 +332,19 @@ func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 		
 			tMsmtInfoReq.Stop()
 
+			// NOTED: optional we could first send a msmt stop request
+			// wait until the server sockets are down
+			// and then close our own
+			// sendUdpMsmtStopRequest(addr, port, callSize)
+
 			for i := 0; i < workers; i++ {
 				closeConnCh<- "close"
 			}
 
 			wg.Wait()
-			
-			// all connections are now terminated: server should shut down aswell
-			// TODO
-			sendUdpMsmtStopRequest(addr, port, callSize)
 
+			sendUdpMsmtStopRequest(addr, port, callSize)
+			
 			fmt.Println("\nAll udp workers are now finished")
 			return
 		}

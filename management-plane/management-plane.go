@@ -78,6 +78,7 @@ func HandleMsmtStopReq(msmtId string) {
 	}
 
 	fmt.Println("\nhandle msmst stop req here")
+	fmt.Println("\nmsmt storage Entry is: ", msmtEntry)
 
 	switch msmstObj := msmtEntry.MsmtObj.(type) {
 	case *tcpThroughput.TcpMsmtObj:

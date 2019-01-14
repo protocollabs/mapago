@@ -108,12 +108,14 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 	var udpConn *net.UDPConn
 	fTsExists := false
 	cltAddrExists := false
+	readCh := make(chan int)
+
 	stream := "stream" + strconv.Itoa(streamIndex)
 	fmt.Printf("\n%s is here", stream)
 
+	// 1. port scanning
 	for {
 		listen := udpMsmt.listenAddr + ":" + strconv.Itoa(port)
-
 		udpAddr, error := net.ResolveUDPAddr("udp", listen)
 		if error != nil {
 			fmt.Printf("Cannot parse \"%s\": %s\n", listen, error)
@@ -135,45 +137,32 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 
 	message := make([]byte, udpMsmt.callSize, udpMsmt.callSize)
 
-	for {
-		select {
-		case data := <-closeCh:
-			cmd, ok := data.(string)
-			if ok == false {
-				fmt.Printf("Type assertion failed: Looking for string %t", ok)
-				os.Exit(1)
-			}
-
-			fmt.Println("\nudp server worker close here")
-
-			if cmd != "close" {
-				fmt.Printf("Wrong cmd: Looking for close cmd")
-				os.Exit(1)
-			}
-			// debug:
-			fmt.Println("\nClosing udpConn!")
-			udpConn.Close()
-			return
-		default:
-
-			// debug fmt.Println("\nright before read from udp")
+	// 2. create go func to read asynchronously
+	go func(readCh chan<- int) {
+		for {
 			bytes, cltAddr, error := udpConn.ReadFromUDP(message)
 			if error != nil {
-				fmt.Printf("Cannot read: %s\n", error)
+				fmt.Printf("Udp server worker! Cannot read: %s\n", error)
 				os.Exit(1)
 			}
-
-			// debug fmt.Println("\nright after read from udp")
 
 			if cltAddrExists == false {
 				fmt.Println("\nConnection from: ", cltAddr)
 				cltAddrExists = true
 			}
 
-			// debug fmt.Println("\nudp server worker data here")
+			readCh <- bytes
+		}
+	}(readCh)
 
+	// 3. for loop and select
+	for {
+		select {
+		// ok, there is data to read!
+		case bytes := <-readCh:
 			udpMsmt.writeByteStorage(stream, uint64(bytes))
 
+			// maybe we could also do this when receing the actual data
 			if fTsExists == false {
 				fTs := shared.ConvCurrDateToStr()
 				udpMsmt.writefTsStorage(stream, fTs)
@@ -182,10 +171,29 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 
 			lTs := shared.ConvCurrDateToStr()
 			udpMsmt.writelTsStorage(stream, lTs)
+
+		// ok, i received a close cmd: tear the socket down
+		// PROBLEM: the asyncronous goroutine still reads from the socket
+		// result: read from closed connection
+		case data := <-closeCh:
+			cmd, ok := data.(string)
+			if ok == false {
+				fmt.Printf("Type assertion failed: Looking for string %t", ok)
+				os.Exit(1)
+			}
+
+			if cmd != "close" {
+				fmt.Printf("Wrong cmd: Looking for close cmd")
+				os.Exit(1)
+			}
+			// debug:
+			fmt.Printf("\nClosing udpConn for stream %s", stream)
+			udpConn.Close()
+
+			return
 		}
 	}
 }
-
 func (udpMsmt *UdpThroughputMsmt) writefTsStorage(stream string, ts string) {
 	udpMsmt.fTsStorageMutex.Lock()
 	udpMsmt.fTsStorage[stream] = ts
@@ -233,12 +241,8 @@ func (udpMsmt *UdpThroughputMsmt) CloseConn() {
 	var msmtData map[string]string
 
 	for i := 0; i < udpMsmt.numStreams; i++ {
-		fmt.Println("\n!!!!close conn func udp here")
-
 		udpMsmt.closeConnCh <- "close"
 	}
-
-	fmt.Println("\nhello2")
 
 	msmtReply := new(shared.ChMsmt2Ctrl)
 	msmtReply.Status = "ok"
@@ -248,7 +252,8 @@ func (udpMsmt *UdpThroughputMsmt) CloseConn() {
 	msmtData["msg"] = "all modules closed"
 	msmtReply.Data = msmtData
 
-	// TODO: we have to attach the final Measurement Data
+	// NOTE: can we ensure that all conns are torn down until
+	// this asynchronous call is executed?!
 	go func() {
 		udpMsmt.msmt2CtrlCh <- *msmtReply
 	}()
