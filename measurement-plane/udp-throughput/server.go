@@ -142,6 +142,13 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 		for {
 			bytes, cltAddr, error := udpConn.ReadFromUDP(message)
 			if error != nil {
+
+				// differ cases of error
+				if error.(*net.OpError).Err.Error() == "use of closed network connection" {
+					// debug fmt.Println("\nClosed network detected! I am ignoring this")
+					break
+				}
+
 				fmt.Printf("Udp server worker! Cannot read: %s\n", error)
 				os.Exit(1)
 			}
