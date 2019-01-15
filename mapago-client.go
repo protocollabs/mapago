@@ -7,10 +7,10 @@ import "os"
 import "sync"
 import "time"
 import "strconv"
-import "github.com/monfron/mapago/control-plane/ctrl/client-protocols"
-import "github.com/monfron/mapago/measurement-plane/tcp-throughput"
-import "github.com/monfron/mapago/measurement-plane/udp-throughput"
-import "github.com/monfron/mapago/control-plane/ctrl/shared"
+import "github.com/protocollabs/mapago/control-plane/ctrl/client-protocols"
+import "github.com/protocollabs/mapago/measurement-plane/tcp-throughput"
+import "github.com/protocollabs/mapago/measurement-plane/udp-throughput"
+import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8

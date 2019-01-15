@@ -3,8 +3,8 @@ package main
 import "fmt"
 import "flag"
 
-//import "github.com/monfron/mapago/controlPlane/cmd/server"
-import "github.com/monfron/mapago/control-plane"
+//import "github.com/protocollabs/mapago/controlPlane/cmd/server"
+import "github.com/protocollabs/mapago/control-plane"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8

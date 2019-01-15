@@ -2,9 +2,9 @@ package controlPlane
 
 import "fmt"
 import "os"
-import "github.com/monfron/mapago/control-plane/ctrl/server-protocols"
-import "github.com/monfron/mapago/control-plane/ctrl/shared"
-import "github.com/monfron/mapago/management-plane"
+import "github.com/protocollabs/mapago/control-plane/ctrl/server-protocols"
+import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
+import "github.com/protocollabs/mapago/management-plane"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8

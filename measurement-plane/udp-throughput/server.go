@@ -5,7 +5,7 @@ import "os"
 import "net"
 import "sync"
 import "strconv"
-import "github.com/monfron/mapago/control-plane/ctrl/shared"
+import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 var UPDATE_INTERVAL = 5
 
