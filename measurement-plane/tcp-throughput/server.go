@@ -107,9 +107,11 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int) {
 	var listener *net.TCPListener
 	fTsExists := false
+	readCh := make(chan int)
 	stream := "stream" + strconv.Itoa(streamIndex)
 	fmt.Printf("\n%s is here", stream)
 
+	// 1. port scanning
 	for {
 		listen := tcpMsmt.listenAddr + ":" + strconv.Itoa(port)
 
@@ -141,8 +143,46 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 	fmt.Printf("Connection from %s\n", conn.RemoteAddr())
 	message := make([]byte, tcpMsmt.callSize, tcpMsmt.callSize)
 
+	// 2. create go func to read asynchronously
+	go func(readCh chan<- int) {
+		for {
+			bytes, error := conn.Read(message)
+			if error != nil {
+
+				// differ cases of error
+				if error.(*net.OpError).Err.Error() == "use of closed network connection" {
+					fmt.Println("\nTCP Closed network detected! I am ignoring this")
+					break
+				}
+
+				fmt.Printf("TCP server worker! Cannot read: %s\n", error)
+				os.Exit(1)
+			}
+
+			readCh <- bytes
+		}
+	}(readCh)
+
+	// 3. for loop and select
 	for {
 		select {
+		// ok, there is data to read!
+		case bytes := <-readCh:
+			tcpMsmt.writeByteStorage(stream, uint64(bytes))
+
+			// maybe we could also do this when receing the actual data
+			if fTsExists == false {
+				fTs := shared.ConvCurrDateToStr()
+				tcpMsmt.writefTsStorage(stream, fTs)
+				fTsExists = true
+			}
+
+			lTs := shared.ConvCurrDateToStr()
+			tcpMsmt.writelTsStorage(stream, lTs)
+
+		// ok, i received a close cmd: tear the socket down
+		// PROBLEM: the asyncronous goroutine still reads from the socket
+		// result: read from closed connection
 		case data := <-closeCh:
 			cmd, ok := data.(string)
 			if ok == false {
@@ -154,26 +194,12 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 				fmt.Printf("Wrong cmd: Looking for close cmd")
 				os.Exit(1)
 			}
+			// debug:
+			fmt.Printf("\nClosing udpConn for stream %s", stream)
 			listener.Close()
 			conn.Close()
+
 			return
-		default:
-			bytes, error := conn.Read(message)
-			if error != nil {
-				fmt.Printf("Cannot read: %s\n", error)
-				os.Exit(1)
-			}
-
-			tcpMsmt.writeByteStorage(stream, uint64(bytes))
-
-			if fTsExists == false {
-				fTs := shared.ConvCurrDateToStr()
-				tcpMsmt.writefTsStorage(stream, fTs)
-				fTsExists = true
-			}
-
-			lTs := shared.ConvCurrDateToStr()
-			tcpMsmt.writelTsStorage(stream, lTs)
 		}
 	}
 }

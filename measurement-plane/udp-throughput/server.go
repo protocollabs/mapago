@@ -109,7 +109,6 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 	fTsExists := false
 	cltAddrExists := false
 	readCh := make(chan int)
-
 	stream := "stream" + strconv.Itoa(streamIndex)
 	fmt.Printf("\n%s is here", stream)
 
