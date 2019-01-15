@@ -5,9 +5,9 @@ import "os"
 import "math/rand"
 import "strings"
 import "strconv"
-import "github.com/monfron/mapago/control-plane/ctrl/shared"
-import "github.com/monfron/mapago/measurement-plane/tcp-throughput"
-import "github.com/monfron/mapago/measurement-plane/udp-throughput"
+import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
+import "github.com/protocollabs/mapago/measurement-plane/tcp-throughput"
+import "github.com/protocollabs/mapago/measurement-plane/udp-throughput"
 
 var msmtStorage map[string]*shared.MsmtStorageEntry
 var mapInited = false
@@ -69,13 +69,16 @@ func constructMsmtId(cltAddr string) string {
 }
 
 func HandleMsmtStopReq(msmtId string) {
-	fmt.Printf("\nMsmtStartReq called!!")
+	fmt.Printf("\nMsmtStopReq called!!")
 
 	msmtEntry, exists := msmtStorage[msmtId]
 	if exists == false {
 		fmt.Printf("\nmsmtEntry for msmtId NOT in storage")
 		os.Exit(1)
 	}
+
+	fmt.Println("\nhandle msmst stop req here")
+	fmt.Println("\nmsmt storage Entry is: ", msmtEntry)
 
 	switch msmstObj := msmtEntry.MsmtObj.(type) {
 	case *tcpThroughput.TcpMsmtObj:

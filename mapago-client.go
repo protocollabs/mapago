@@ -7,9 +7,10 @@ import "os"
 import "sync"
 import "time"
 import "strconv"
-import "github.com/monfron/mapago/control-plane/ctrl/client-protocols"
-import "github.com/monfron/mapago/measurement-plane/tcp-throughput"
-import "github.com/monfron/mapago/control-plane/ctrl/shared"
+import "github.com/protocollabs/mapago/control-plane/ctrl/client-protocols"
+import "github.com/protocollabs/mapago/measurement-plane/tcp-throughput"
+import "github.com/protocollabs/mapago/measurement-plane/udp-throughput"
+import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
@@ -66,8 +67,12 @@ func runTcpCtrlClient(addr string, port int, callSize int, msmtType string) {
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.INFO_REQUEST
 
-	idStorage["tcp-id"] = shared.ConstructId()
-	reqDataObj.Id = idStorage["tcp-id"]
+	_, ok := idStorage["host-uuid"]
+	if ok != true {
+		idStorage["host-uuid"] = shared.ConstructId()
+	}
+
+	reqDataObj.Id = idStorage["host-uuid"]
 
 	reqDataObj.Seq = "0"
 	reqDataObj.Ts = shared.ConvCurrDateToStr()
@@ -104,7 +109,7 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
 		
-	if val, ok := idStorage["tcp-id"]; ok {
+	if val, ok := idStorage["host-uuid"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
@@ -161,18 +166,13 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 	for {
 		select {
 		case <-tMsmtInfoReq.C:
-			fmt.Println("\nIts time to send a Msmt_Info_Req")
-			/*
-			- TODO: implement Msmt_info_req logic
-			- i.e. construct Msmt_info_Req Message
-			- send an wait for reply 
-			*/
+			fmt.Println("\nTCP: Its time to send a Msmt_Info_Req")
 			sendTcpMsmtInfoRequest(addr, port, callSize)
 
 			tMsmtInfoReq.Reset(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
 
 		case <-tMsmtStopReq.C:
-			fmt.Println("\nIts time to finish the measurement! close all conns")
+			fmt.Println("\nTCP: Its time to finish the measurement! close all conns")
 		
 			tMsmtInfoReq.Stop()
 
@@ -198,7 +198,7 @@ func sendTcpMsmtInfoRequest(addr string, port int, callSize int) {
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_INFO_REQUEST
 	
-	if val, ok := idStorage["tcp-id"]; ok {
+	if val, ok := idStorage["host-uuid"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
@@ -231,7 +231,7 @@ func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_STOP_REQUEST
 	
-	if val, ok := idStorage["tcp-id"]; ok {
+	if val, ok := idStorage["host-uuid"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
@@ -256,16 +256,16 @@ func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
 
 // this starts the UDP throughput measurement
 // underlying control channel is TCP based
-// RFC: The underlying CONTROL CHANNEL IS HERE TCP
-// WE HAVE TO CHANGE THAT
 func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
+	var wg sync.WaitGroup
+	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("UdpThroughputMsmtConn", addr, port, callSize)
 
 	// TODO: Still some fields are HARDCODED
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
 	
-	if val, ok := idStorage["udp-id"]; ok {
+	if val, ok := idStorage["host-uuid"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
@@ -279,27 +279,136 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	msmtObj := constructMeasurementObj("udp-throughput", "module")
 	reqDataObj.Measurement = *msmtObj
 
+	numWorker, err := strconv.Atoi(reqDataObj.Measurement.Configuration.Worker)
+	if err != nil {
+		fmt.Printf("Could not parse Workers: %s\n", err)
+		os.Exit(1)
+	}
+
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	// debug fmt.Printf("\nrequest JSON is: % s", reqJson)
 
-	// RFC: this should return the server listen ports
 	repDataObj := tcpObj.StartMeasurement(reqJson)
-	fmt.Println("\n\n-------------Client received (UDP) Measurement_Start_reply ------------- \n", repDataObj)
+	fmt.Println("\n\n------------- Client received (UDP) Measurement_Start_reply ------------- \n", repDataObj)
 
 	if msmtStorageInited == false {
 		msmtIdStorage = make(map[string]string)
 		msmtStorageInited = true
 	}
 
-	msmtIdStorage[repDataObj.Measurement_id] = "udp-throughput"
+	msmtIdStorage["udp-throughput1"] = repDataObj.Measurement_id
+
 	fmt.Println("\nWE ARE NOW READY TO START WITH THE UDP MSMT")
 
-	// RFC: this should return the server listen ports
+	udpThroughput.NewUdpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh)
 
-	/* TODO: 
-	- UdpThroughput call
-	- UDP oop approach
+	fmt.Println("\n\n---------- UDP MSMT is now running ---------- ")
+
+	manageUdpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
+}
+
+
+func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
+	tMsmtInfoReq := time.NewTimer(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
+	/* TODO: nicht zeitgetriggert sonder daten getriggert
+	wenn letzte daten erhalten => close conns
+	würde Probleme geben bei starker packet verlustrate
+	wir sagen 10s und während dessen empfangen wir nichts
+	dann bauen wir schon verbindung ab => client ist immer noch im retransmit
 	*/
+	tMsmtStopReq := time.NewTimer(time.Duration(MSMT_STOP_INTERVAL) * time.Second)
+
+	for {
+		select {
+		case <-tMsmtInfoReq.C:
+			fmt.Println("\nUDP: Its time to send a Msmt_Info_Req")
+			// TODO
+			sendUdpMsmtInfoRequest(addr, port, callSize)
+
+			tMsmtInfoReq.Reset(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
+
+		case <-tMsmtStopReq.C:
+			fmt.Println("\nUDP Its time to finish the measurement! close all conns")
+		
+			tMsmtInfoReq.Stop()
+
+			// NOTED: optional we could first send a msmt stop request
+			// wait until the server sockets are down
+			// and then close our own
+			// sendUdpMsmtStopRequest(addr, port, callSize)
+
+			for i := 0; i < workers; i++ {
+				closeConnCh<- "close"
+			}
+
+			wg.Wait()
+
+			sendUdpMsmtStopRequest(addr, port, callSize)
+			
+			fmt.Println("\nAll udp workers are now finished")
+			return
+		}
+	}
+
+}
+
+func sendUdpMsmtInfoRequest(addr string, port int, callSize int) {
+	tcpObj := clientProtos.NewTcpObj("UdpThroughputMsmtInfoReqConn", addr, port, callSize)
+
+	// TODO: build json "dummy" message
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.MEASUREMENT_INFO_REQUEST
+	
+	if val, ok := idStorage["host-uuid"]; ok {
+		reqDataObj.Id = val
+	} else {
+		fmt.Println("\nFound not the id")
+	}
+	
+	// TODO: hardcoded atm
+	reqDataObj.Seq = "3"
+	reqDataObj.Secret = "fancySecret"
+
+	if val, ok := msmtIdStorage["udp-throughput1"]; ok {
+		reqDataObj.Measurement_id = val
+	} else {
+		fmt.Println("\nFound not the measurement id for udp throughput")
+	}
+
+	reqJson := shared.ConvDataStructToJson(reqDataObj)
+	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
+
+	repDataObj := tcpObj.GetMeasurementInfo(reqJson)
+	fmt.Println("\n\n------------- Client received (UDP) Measurement_Info_reply ------------- \n", repDataObj)
+}
+
+func sendUdpMsmtStopRequest(addr string, port int, callSize int) {
+	tcpObj := clientProtos.NewTcpObj("UdpThroughputMsmtStopReqConn", addr, port, callSize)
+
+	// TODO: build json "dummy" message
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.MEASUREMENT_STOP_REQUEST
+	
+	if val, ok := idStorage["host-uuid"]; ok {
+		reqDataObj.Id = val
+	} else {
+		fmt.Println("\nFound not the id")
+	}
+	
+	reqDataObj.Seq = "2"
+	reqDataObj.Secret = "fancySecret"
+
+	if val, ok := msmtIdStorage["udp-throughput1"]; ok {
+		reqDataObj.Measurement_id = val
+	} else {
+		fmt.Println("\nFound not the measurement id for udp throughput")
+	}
+
+	reqJson := shared.ConvDataStructToJson(reqDataObj)
+	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
+
+	repDataObj := tcpObj.StopMeasurement(reqJson)
+	fmt.Println("\n\n------------- Client received (UDP) Measurement_Stop_reply ------------- \n", repDataObj)
 }
 
 func constructMeasurementObj(name string, msmtType string) *shared.MeasurementObj {
@@ -324,8 +433,12 @@ func runUdpCtrlClient(addr string, port int, callSize int, msmtType string) {
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.INFO_REQUEST
 
-	idStorage["udp-id"] = shared.ConstructId()
-	reqDataObj.Id = idStorage["udp-id"]
+	_, ok := idStorage["host-uuid"]
+	if ok != true {
+		idStorage["host-uuid"] = shared.ConstructId()
+	}
+
+	reqDataObj.Id = idStorage["host-uuid"]
 
 	reqDataObj.Seq = "0"
 	reqDataObj.Ts = shared.ConvCurrDateToStr()

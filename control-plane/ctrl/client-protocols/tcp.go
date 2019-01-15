@@ -4,7 +4,7 @@ import "fmt"
 import "net"
 import "strconv"
 import "os"
-import "github.com/monfron/mapago/control-plane/ctrl/shared"
+import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 // classes
 
@@ -119,7 +119,7 @@ func (tcp *TcpObj) StartMeasurement(jsonData []byte) *shared.DataObj {
 		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
 
 		if repDataObj.Type == shared.MEASUREMENT_START_REPLY {
-			fmt.Printf("\nClient received an TCP Measurement_Start_Reply!!!")
+			fmt.Printf("\nClient received an Measurement_Start_Reply!!!")
 			break
 		}
 	}
@@ -166,7 +166,7 @@ func (tcp *TcpObj) StopMeasurement(jsonData []byte) *shared.DataObj {
 		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
 
 		if repDataObj.Type == shared.MEASUREMENT_STOP_REPLY {
-			fmt.Printf("\nClient received an TCP Measurement_Stop_Reply!!!")
+			fmt.Printf("\nClient received an Measurement_Stop_Reply!!!")
 			break
 		}
 	}
@@ -213,7 +213,7 @@ func (tcp *TcpObj) GetMeasurementInfo(jsonData []byte) *shared.DataObj {
 		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
 
 		if repDataObj.Type == shared.MEASUREMENT_INFO_REPLY {
-			fmt.Printf("\nClient received an TCP Measurement_Info_Reply!!!")
+			fmt.Printf("\nClient received an Measurement_Info_Reply!!!")
 			break
 		}
 	}

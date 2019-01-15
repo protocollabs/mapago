@@ -5,22 +5,24 @@ import "os"
 import "net"
 import "sync"
 import "strconv"
-import "github.com/monfron/mapago/control-plane/ctrl/shared"
+import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 var UPDATE_INTERVAL = 5
 
 type UdpThroughputMsmt struct {
-	numStreams       int
-	usedPorts        []int
-	callSize         int
-	listenAddr       string
-	msmtId           string
-	byteStorage      map[string]uint64
-	byteStorageMutex sync.RWMutex
-	fTsStorage       map[string]string
-	fTsStorageMutex  sync.RWMutex
-	lTsStorage       map[string]string
-	lTsStorageMutex  sync.RWMutex
+	numStreams          int
+	usedPorts           []int
+	callSize            int
+	listenAddr          string
+	msmtId              string
+	byteStorage         map[string]uint64
+	byteStorageMutex    sync.RWMutex
+	fTsStorage          map[string]string
+	fTsStorageMutex     sync.RWMutex
+	lTsStorage          map[string]string
+	lTsStorageMutex     sync.RWMutex
+	udpConnStorage      map[string]*net.UDPConn
+	udpConnStorageMutex sync.RWMutex
 
 	/*
 		- this attribute can be used by start() to RECEIVE cmd from managementplane
@@ -48,8 +50,9 @@ func NewUdpThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared
 	udpMsmt.byteStorage = make(map[string]uint64)
 	udpMsmt.fTsStorage = make(map[string]string)
 	udpMsmt.lTsStorage = make(map[string]string)
+	udpMsmt.udpConnStorage = make(map[string]*net.UDPConn)
 
-	fmt.Println("\nClient request is: ", msmtStartReq)
+	fmt.Println("\nClient UDP request is: ", msmtStartReq)
 
 	udpMsmt.numStreams, err = strconv.Atoi(msmtStartReq.Measurement.Configuration.Worker)
 	if err != nil {
@@ -111,9 +114,9 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 	stream := "stream" + strconv.Itoa(streamIndex)
 	fmt.Printf("\n%s is here", stream)
 
+	// 1. port scanning
 	for {
 		listen := udpMsmt.listenAddr + ":" + strconv.Itoa(port)
-
 		udpAddr, error := net.ResolveUDPAddr("udp", listen)
 		if error != nil {
 			fmt.Printf("Cannot parse \"%s\": %s\n", listen, error)
@@ -125,6 +128,9 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 		if error == nil {
 			// debug fmt.Printf("\nCan listen on addr: %s\n", listen)
 			udpMsmt.usedPorts = append(udpMsmt.usedPorts, port)
+
+			udpMsmt.writeUdpConnStorage(stream, udpConn)
+
 			goHeartbeatCh <- true
 			break
 		}
@@ -133,50 +139,37 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 		port++
 	}
 
-	// TODO maybe that does not work at that point
-	// fmt.Printf("Connection from %s\n", udpConn.RemoteAddr())
 	message := make([]byte, udpMsmt.callSize, udpMsmt.callSize)
 
+	// 2. create go func to read asynchronously
 	for {
-		select {
-		case data := <-closeCh:
-			cmd, ok := data.(string)
-			if ok == false {
-				fmt.Printf("Type assertion failed: Looking for string %t", ok)
-				os.Exit(1)
+		bytes, cltAddr, error := udpConn.ReadFromUDP(message)
+		if error != nil {
+
+			if error.(*net.OpError).Err.Error() == "use of closed network connection" {
+				// debug fmt.Println("\nClosed network detected! I am ignoring this")
+				break
 			}
 
-			if cmd != "close" {
-				fmt.Printf("Wrong cmd: Looking for close cmd")
-				os.Exit(1)
-			}
-			// debug:
-			fmt.Println("\nClosing udpConn!")
-			udpConn.Close()
-			return
-		default:
-			bytes, cltAddr, error := udpConn.ReadFromUDP(message)
-			if error != nil {
-				fmt.Printf("Cannot read: %s\n", error)
-				os.Exit(1)
-			}
-
-			if cltAddrExists == false {
-				fmt.Println("\nConnection from: ", cltAddr)
-				cltAddrExists = true
-			}
-
-			udpMsmt.writeByteStorage(stream, uint64(bytes))
-
-			if fTsExists == false {
-				fTs := shared.ConvCurrDateToStr()
-				udpMsmt.writefTsStorage(stream, fTs)
-				fTsExists = true
-			}
-
-			lTs := shared.ConvCurrDateToStr()
-			udpMsmt.writelTsStorage(stream, lTs)
+			fmt.Printf("Udp server worker! Cannot read: %s\n", error)
+			os.Exit(1)
 		}
+
+		if cltAddrExists == false {
+			fmt.Println("\nConnection from: ", cltAddr)
+			cltAddrExists = true
+		}
+
+		udpMsmt.writeByteStorage(stream, uint64(bytes))
+
+		if fTsExists == false {
+			fTs := shared.ConvCurrDateToStr()
+			udpMsmt.writefTsStorage(stream, fTs)
+			fTsExists = true
+		}
+
+		lTs := shared.ConvCurrDateToStr()
+		udpMsmt.writelTsStorage(stream, lTs)
 	}
 }
 
@@ -223,11 +216,25 @@ func (udpMsmt *UdpThroughputMsmt) readByteStorage(stream string) uint64 {
 	return bytes
 }
 
+func (udpMsmt *UdpThroughputMsmt) writeUdpConnStorage(stream string, sock *net.UDPConn) {
+	udpMsmt.udpConnStorageMutex.Lock()
+	udpMsmt.udpConnStorage[stream] = sock
+	udpMsmt.udpConnStorageMutex.Unlock()
+}
+
+func (udpMsmt *UdpThroughputMsmt) readUdpConnStorage(stream string) *net.UDPConn {
+	udpMsmt.udpConnStorageMutex.RLock()
+	sock := udpMsmt.udpConnStorage[stream]
+	udpMsmt.udpConnStorageMutex.RUnlock()
+	return sock
+}
+
 func (udpMsmt *UdpThroughputMsmt) CloseConn() {
 	var msmtData map[string]string
 
-	for i := 0; i < udpMsmt.numStreams; i++ {
-		udpMsmt.closeConnCh <- "close"
+	for streamId, sock := range udpMsmt.udpConnStorage {
+		fmt.Println("\nUDP closing: ", streamId)
+		sock.Close()
 	}
 
 	msmtReply := new(shared.ChMsmt2Ctrl)
@@ -238,7 +245,6 @@ func (udpMsmt *UdpThroughputMsmt) CloseConn() {
 	msmtData["msg"] = "all modules closed"
 	msmtReply.Data = msmtData
 
-	// TODO: we have to attach the final Measurement Data
 	go func() {
 		udpMsmt.msmt2CtrlCh <- *msmtReply
 	}()
