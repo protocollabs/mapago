@@ -250,9 +250,7 @@ func (tcpMsmt *TcpMsmtObj) writefTsStorage(stream string, ts string) {
 }
 
 func (tcpMsmt *TcpMsmtObj) readfTsStorage(stream string) string {
-	tcpMsmt.fTsStorageMutex.RLock()
 	ts := tcpMsmt.fTsStorage[stream]
-	tcpMsmt.fTsStorageMutex.RUnlock()
 
 	return ts
 }
@@ -264,9 +262,7 @@ func (tcpMsmt *TcpMsmtObj) writelTsStorage(stream string, ts string) {
 }
 
 func (tcpMsmt *TcpMsmtObj) readlTsStorage(stream string) string {
-	tcpMsmt.lTsStorageMutex.RLock()
 	ts := tcpMsmt.lTsStorage[stream]
-	tcpMsmt.lTsStorageMutex.RUnlock()
 
 	return ts
 }
@@ -279,9 +275,7 @@ func (tcpMsmt *TcpMsmtObj) writeByteStorage(stream string, bytes uint64) {
 
 // we can precise which key to address
 func (tcpMsmt *TcpMsmtObj) readByteStorage(stream string) uint64 {
-	tcpMsmt.byteStorageMutex.RLock()
 	bytes := tcpMsmt.byteStorage[stream]
-	tcpMsmt.byteStorageMutex.RUnlock()
 
 	return bytes
 }
