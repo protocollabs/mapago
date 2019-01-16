@@ -1,11 +1,29 @@
 # Maparo
 
-## Installation
+## Current installation procedure
 
 You can use pre-compiled releases compiled for Linux, Mac and Windows.
 
 > Note: the feature set is not identical on all platforms. The module
 > help describe all pitfalls.
+
+Execute the following installation steps to use Mapago:
+
+- Download go archive
+- extract it with tar -C /usr/local -xzf go1.11.4.linux-amd64.tar.gz (linux)
+- set /usr/local/go/bin to PATH variable
+- verify installation (go hello world)
+- export GOPATH=$HOME/go
+- verify it: go env GOPATH
+- export GOBIN=$HOME/go/bin
+- verify it: go env GOBIN
+- go get github.com/protocollabs/mapago
+- cd to mapago
+- make install
+- in the bin folder pointed by GOBIN you will find the mapago-server and mapago-client
+- server does for example: ./mapago-server -uc-listen-addr 169.254.206.129
+- client does for example: ./mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp -msmt-type tcp-throughput
+
 
 ## Design Principles
 
