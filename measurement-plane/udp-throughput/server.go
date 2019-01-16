@@ -114,7 +114,6 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 	stream := "stream" + strconv.Itoa(streamIndex)
 	fmt.Printf("\n%s is here", stream)
 
-	// 1. port scanning
 	for {
 		listen := udpMsmt.listenAddr + ":" + strconv.Itoa(port)
 		udpAddr, error := net.ResolveUDPAddr("udp", listen)
@@ -135,13 +134,11 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 			break
 		}
 
-		// debug fmt.Printf("\nCannot listen on addr: %s\n", listen)
 		port++
 	}
 
 	message := make([]byte, udpMsmt.callSize, udpMsmt.callSize)
 
-	// 2. create go func to read asynchronously
 	for {
 		bytes, cltAddr, error := udpConn.ReadFromUDP(message)
 		if error != nil {
@@ -220,13 +217,6 @@ func (udpMsmt *UdpThroughputMsmt) writeUdpConnStorage(stream string, sock *net.U
 	udpMsmt.udpConnStorageMutex.Lock()
 	udpMsmt.udpConnStorage[stream] = sock
 	udpMsmt.udpConnStorageMutex.Unlock()
-}
-
-func (udpMsmt *UdpThroughputMsmt) readUdpConnStorage(stream string) *net.UDPConn {
-	udpMsmt.udpConnStorageMutex.RLock()
-	sock := udpMsmt.udpConnStorage[stream]
-	udpMsmt.udpConnStorageMutex.RUnlock()
-	return sock
 }
 
 func (udpMsmt *UdpThroughputMsmt) CloseConn() {
