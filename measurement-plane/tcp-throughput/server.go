@@ -15,8 +15,7 @@ type TcpMsmtObj struct {
 	listenAddr      string
 	msmtId          string
 	msmtInfoStorage map[string]*shared.MsmtInfoObj
-	// we dont need a ptr to be precisely
-	connStorage map[string]*shared.TcpConnObj
+	connStorage     map[string]*shared.TcpConnObj
 
 	/*
 		- this attribute can be used by start() to RECEIVE cmd from managementplane
