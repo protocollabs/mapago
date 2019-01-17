@@ -1,5 +1,7 @@
 package shared
 
+import "net"
+
 // channel result
 
 const (
@@ -126,4 +128,9 @@ type MsmtInfoObj struct {
 	Bytes   uint64
 	FirstTs string
 	LastTs  string
+}
+
+type TcpConnObj struct {
+	SrvSock    *net.TCPListener
+	AcceptSock *net.TCPConn
 }

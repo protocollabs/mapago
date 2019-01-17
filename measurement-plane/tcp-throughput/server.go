@@ -4,7 +4,6 @@ import "fmt"
 import "os"
 import "net"
 import "strconv"
-import "sync"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 var UPDATE_INTERVAL = 5
@@ -16,14 +15,8 @@ type TcpMsmtObj struct {
 	listenAddr      string
 	msmtId          string
 	msmtInfoStorage map[string]*shared.MsmtInfoObj
-
-	// MAYBE UPDATED THIS
-	tcpConnStorage      map[string]*net.TCPConn
-	tcpConnStorageMutex sync.RWMutex
-
-	// MAYBE UPDATED THIS
-	listenerStorage      map[string]*net.TCPListener
-	listenerStorageMutex sync.RWMutex
+	// we dont need a ptr to be precisely
+	connStorage map[string]*shared.TcpConnObj
 
 	/*
 		- this attribute can be used by start() to RECEIVE cmd from managementplane
@@ -49,11 +42,7 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	tcpMsmt := new(TcpMsmtObj)
 
 	tcpMsmt.msmtInfoStorage = make(map[string]*shared.MsmtInfoObj)
-
-	// MAYBE UPDATED THIS
-	tcpMsmt.tcpConnStorage = make(map[string]*net.TCPConn)
-	tcpMsmt.listenerStorage = make(map[string]*net.TCPListener)
-
+	tcpMsmt.connStorage = make(map[string]*shared.TcpConnObj)
 	fmt.Println("\nClient TCP request is: ", msmtStartReq)
 
 	tcpMsmt.numStreams, err = strconv.Atoi(msmtStartReq.Measurement.Configuration.Worker)
@@ -77,10 +66,13 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	for c := 1; c <= tcpMsmt.numStreams; c++ {
 		stream := "stream" + strconv.Itoa(c)
 
-		msmtInfoStruct := shared.MsmtInfoObj{}
-		tcpMsmt.msmtInfoStorage[stream] = &msmtInfoStruct
+		msmtInfo := shared.MsmtInfoObj{}
+		tcpMsmt.msmtInfoStorage[stream] = &msmtInfo
 
-		go tcpMsmt.tcpServerWorker(closeCh, heartbeatCh, startPort, c, &msmtInfoStruct)
+		tcpConns := shared.TcpConnObj{}
+		tcpMsmt.connStorage[stream] = &tcpConns
+
+		go tcpMsmt.tcpServerWorker(closeCh, heartbeatCh, startPort, c, &msmtInfo, &tcpConns)
 	}
 
 	for c := 1; c <= tcpMsmt.numStreams; c++ {
@@ -113,7 +105,7 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	return tcpMsmt
 }
 
-func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int, msmtInfoPtr *shared.MsmtInfoObj) {
+func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int, msmtInfoPtr *shared.MsmtInfoObj, connPtr *shared.TcpConnObj) {
 	var listener *net.TCPListener
 	fTsExists := false
 	stream := "stream" + strconv.Itoa(streamIndex)
@@ -133,10 +125,7 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 		if error == nil {
 			// debug fmt.Printf("\nCan listen on addr: %s\n", listen)
 			tcpMsmt.usedPorts = append(tcpMsmt.usedPorts, port)
-
-			// TODO: Check if we can handle this without mutex
-			tcpMsmt.writeListenerStorage(stream, listener)
-
+			connPtr.SrvSock = listener
 			goHeartbeatCh <- true
 			break
 		}
@@ -151,9 +140,7 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 	}
 
 	fmt.Printf("Connection from %s\n", conn.RemoteAddr())
-	// The accept socket must be saved  or we get a concurrent write race condition
-	// TODO: Check if we can handle this without mutex
-	tcpMsmt.writeTcpConnStorage(stream, conn)
+	connPtr.AcceptSock = conn
 
 	message := make([]byte, tcpMsmt.callSize, tcpMsmt.callSize)
 
@@ -182,31 +169,13 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 	}
 }
 
-// MAYBE UPDATED THIS
-func (tcpMsmt *TcpMsmtObj) writeTcpConnStorage(stream string, acceptSock *net.TCPConn) {
-	tcpMsmt.tcpConnStorageMutex.Lock()
-	tcpMsmt.tcpConnStorage[stream] = acceptSock
-	tcpMsmt.tcpConnStorageMutex.Unlock()
-}
-
-// MAYBE UPDATED THIS
-func (tcpMsmt *TcpMsmtObj) writeListenerStorage(stream string, serverSock *net.TCPListener) {
-	tcpMsmt.listenerStorageMutex.Lock()
-	tcpMsmt.listenerStorage[stream] = serverSock
-	tcpMsmt.listenerStorageMutex.Unlock()
-}
-
 func (tcpMsmt *TcpMsmtObj) CloseConn() {
 	var msmtData map[string]string
 
-	// MAYBE UPDATED THIS
-	for _, acceptSock := range tcpMsmt.tcpConnStorage {
-		acceptSock.Close()
-	}
-
-	// MAYBE UPDATED THIS
-	for _, srvSock := range tcpMsmt.listenerStorage {
-		srvSock.Close()
+	for c, tcpConns := range tcpMsmt.connStorage {
+		fmt.Println("\nClosing stream: ", c)
+		tcpConns.AcceptSock.Close()
+		tcpConns.SrvSock.Close()
 	}
 
 	msmtReply := new(shared.ChMsmt2Ctrl)
