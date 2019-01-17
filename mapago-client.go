@@ -14,22 +14,18 @@ import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
-// TODO: param via cli to define path to config
 var CONFIG_FILE = "conf.json"
-// TODO: do this maybe as a config param
 var MSMT_INFO_INTERVAL = 2
 var MSMT_STOP_INTERVAL = 10
 var MSMT_STREAMS = 1
-
-// content "MID":"msmt_type"
 var msmtIdStorage map[string]string
-// Content "ID":"Hostname=UUID"
 var idStorage map[string]string
 var msmtStorageInited = false
 var idStorageInited = false
 var streamCount int 
 var msmtListenAddr string
 var msmtCallSize int
+var seqNo uint64
 
 func main() {
 	ctrlProto := flag.String("ctrl-protocol", "tcp", "tcp, udp or udp_mcast")
@@ -75,6 +71,8 @@ func runTcpCtrlClient(addr string, port int, callSize int, msmtType string, msmt
 	msmtListenAddr = msmtAddr
 	msmtCallSize = msmtCSize
 
+	seqNo = shared.ConstructSeqNo()
+
 	if idStorageInited == false {
 		idStorage = make(map[string]string)
 		idStorageInited = true
@@ -91,7 +89,7 @@ func runTcpCtrlClient(addr string, port int, callSize int, msmtType string, msmt
 
 	reqDataObj.Id = idStorage["host-uuid"]
 
-	reqDataObj.Seq = "0"
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Ts = shared.ConvCurrDateToStr()
 	reqDataObj.Secret = "fancySecret"
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
@@ -132,7 +130,8 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 		fmt.Println("\nFound not the id")
 	}
 	
-	reqDataObj.Seq = "1"
+	seqNo++
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
 	reqDataObj.Measurement_delay = "666"
 	reqDataObj.Measurement_time_max = "666"
@@ -222,7 +221,8 @@ func sendTcpMsmtInfoRequest(addr string, port int, callSize int) {
 	}
 	
 	// TODO: hardcoded atm
-	reqDataObj.Seq = "3"
+	seqNo++
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
 
 	if val, ok := msmtIdStorage["tcp-throughput1"]; ok {
@@ -254,7 +254,8 @@ func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
 		fmt.Println("\nFound not the id")
 	}
 	
-	reqDataObj.Seq = "2"
+	seqNo++
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
 
 	if val, ok := msmtIdStorage["tcp-throughput1"]; ok {
@@ -288,7 +289,8 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 		fmt.Println("\nFound not the id")
 	}
 
-	reqDataObj.Seq = "1"
+	seqNo++
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
 	reqDataObj.Measurement_delay = "666"
 	reqDataObj.Measurement_time_max = "666"
@@ -383,7 +385,8 @@ func sendUdpMsmtInfoRequest(addr string, port int, callSize int) {
 	}
 	
 	// TODO: hardcoded atm
-	reqDataObj.Seq = "3"
+	seqNo++
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
 
 	if val, ok := msmtIdStorage["udp-throughput1"]; ok {
@@ -412,7 +415,8 @@ func sendUdpMsmtStopRequest(addr string, port int, callSize int) {
 		fmt.Println("\nFound not the id")
 	}
 	
-	reqDataObj.Seq = "2"
+	seqNo++
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
 
 	if val, ok := msmtIdStorage["udp-throughput1"]; ok {
@@ -453,6 +457,8 @@ func runUdpCtrlClient(addr string, port int, callSize int, msmtType string, msmt
 	msmtListenAddr = msmtAddr
 	msmtCallSize = msmtCSize
 
+	seqNo = shared.ConstructSeqNo()
+
 	if idStorageInited == false {
 		idStorage = make(map[string]string)
 		idStorageInited = true
@@ -469,7 +475,7 @@ func runUdpCtrlClient(addr string, port int, callSize int, msmtType string, msmt
 
 	reqDataObj.Id = idStorage["host-uuid"]
 
-	reqDataObj.Seq = "0"
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Ts = shared.ConvCurrDateToStr()
 	reqDataObj.Secret = "fancySecret"
 
@@ -499,6 +505,8 @@ func runUdpMcastCtrlClient(addr string, port int, callSize int, msmtType string,
 	msmtListenAddr = msmtAddr
 	msmtCallSize = msmtCSize
 
+	seqNo = shared.ConstructSeqNo()
+
 	if idStorageInited == false {
 		idStorage = make(map[string]string)
 		idStorageInited = true
@@ -511,7 +519,7 @@ func runUdpMcastCtrlClient(addr string, port int, callSize int, msmtType string,
 	idStorage["mcast-id"] = shared.ConstructId()
 	reqDataObj.Id = idStorage["mcast-id"]
 
-	reqDataObj.Seq = "0"
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Ts = shared.ConvCurrDateToStr()
 	reqDataObj.Secret = "fancySecret"
 
