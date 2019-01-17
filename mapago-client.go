@@ -19,44 +19,61 @@ var CONFIG_FILE = "conf.json"
 // TODO: do this maybe as a config param
 var MSMT_INFO_INTERVAL = 2
 var MSMT_STOP_INTERVAL = 10
+var MSMT_STREAMS = 1
+
 // content "MID":"msmt_type"
 var msmtIdStorage map[string]string
 // Content "ID":"Hostname=UUID"
 var idStorage map[string]string
 var msmtStorageInited = false
 var idStorageInited = false
+var streamCount int 
+var msmtListenAddr string
+var msmtCallSize int
 
 func main() {
-	ctrlProtoPtr := flag.String("ctrl-protocol", "tcp", "tcp, udp or udp_mcast")
-	ctrlAddrPtr := flag.String("ctrl-addr", "127.0.0.1", "localhost or userdefined addr")
-	portPtr := flag.Int("ctrl-port", CTRL_PORT, "port for interacting with control channel")
-	callSizePtr := flag.Int("call-size", DEF_BUFFER_SIZE, "application buffer in bytes")
-	msmtTypePtr := flag.String("msmt-type", "tcp-throughput", "tcp-throughput or udp-throughput")
+	ctrlProto := flag.String("ctrl-protocol", "tcp", "tcp, udp or udp_mcast")
+	ctrlAddr := flag.String("ctrl-addr", "127.0.0.1", "localhost or userdefined addr")
+	port := flag.Int("ctrl-port", CTRL_PORT, "port for interacting with control channel")
+	callSize := flag.Int("call-size", DEF_BUFFER_SIZE, "control application buffer in bytes")
+	msmtType := flag.String("msmt-type", "tcp-throughput", "tcp-throughput or udp-throughput")
+	msmtStreams := flag.Int("msmt-streams", MSMT_STREAMS, "setting number of streams")
+	msmtLAddr := flag.String("msmt-listen-addr", "127.0.0.1", "localhost or userdefined addr")
+	msmtCSize := flag.Int("msmt-call-size", DEF_BUFFER_SIZE, "msmt application buffer in bytes")
+	
 
 	flag.Parse()
 
 	fmt.Println("mapago(c) - 2018")
 	fmt.Println("Client side")
-	fmt.Println("Control protocol:", *ctrlProtoPtr)
-	fmt.Println("Control addr:", *ctrlAddrPtr)
-	fmt.Println("Control Port:", *portPtr)
-	fmt.Println("Call-Size: ", *callSizePtr)
-	fmt.Println("Msmt-type: ", *msmtTypePtr)
+	fmt.Println("Control protocol:", *ctrlProto)
+	fmt.Println("Control addr:", *ctrlAddr)
+	fmt.Println("Control Port:", *port)
+	fmt.Println("Call-Size: ", *callSize)
+	fmt.Println("Msmt-type: ", *msmtType)
+	fmt.Println("Msmt-Streams: ", *msmtStreams)
+	fmt.Println("Msmt-Addr: ", *msmtLAddr)
+	fmt.Println("Msmt-CallSize: ", *msmtCSize)
+	
 
-
-	if *ctrlProtoPtr == "tcp" {
-		runTcpCtrlClient(*ctrlAddrPtr, *portPtr, *callSizePtr, *msmtTypePtr)
-	} else if *ctrlProtoPtr == "udp" {
-		runUdpCtrlClient(*ctrlAddrPtr, *portPtr, *callSizePtr, *msmtTypePtr)
-	} else if *ctrlProtoPtr == "udp_mcast" {
-		runUdpMcastCtrlClient(*ctrlAddrPtr, *portPtr, *callSizePtr, *msmtTypePtr)
+	if *ctrlProto == "tcp" {
+		runTcpCtrlClient(*ctrlAddr, *port, *callSize, *msmtType, *msmtStreams, *msmtLAddr, *msmtCSize)
+	} else if *ctrlProto == "udp" {
+		runUdpCtrlClient(*ctrlAddr, *port, *callSize, *msmtType, *msmtStreams, *msmtLAddr, *msmtCSize)
+	} else if *ctrlProto == "udp_mcast" {
+		runUdpMcastCtrlClient(*ctrlAddr, *port, *callSize, *msmtType, *msmtStreams, *msmtLAddr, *msmtCSize)
 	} else {
 		panic("tcp, udp or udp_mcast as ctrl-proto")
 	}
 }
 
-func runTcpCtrlClient(addr string, port int, callSize int, msmtType string) {
+func runTcpCtrlClient(addr string, port int, callSize int, msmtType string, msmtStreams int, msmtAddr string, msmtCSize int) {
 	tcpObj := clientProtos.NewTcpObj("TcpDiscoveryConn", addr, port, callSize)
+
+	// dont push the params through all function apis
+	streamCount = msmtStreams
+	msmtListenAddr = msmtAddr
+	msmtCallSize = msmtCSize
 
 	if idStorageInited == false {
 		idStorage = make(map[string]string)
@@ -416,13 +433,25 @@ func constructMeasurementObj(name string, msmtType string) *shared.MeasurementOb
 	MsmtObj.Name = name
 	MsmtObj.Type = msmtType
 
-	confObj := shared.ConstructConfiguration(CONFIG_FILE)
+	// we dont need a configuration anymore
+//	confObj := shared.ConstructConfiguration(CONFIG_FILE)
+	confObj := new(shared.ConfigurationObj)
+	confObj.Worker = strconv.Itoa(streamCount)
+	confObj.Listen_addr = msmtListenAddr
+	confObj.Call_size = "64768"
+
+
 	MsmtObj.Configuration = *confObj
 	return MsmtObj
 }
 
-func runUdpCtrlClient(addr string, port int, callSize int, msmtType string) {
+func runUdpCtrlClient(addr string, port int, callSize int, msmtType string, msmtStreams int, msmtAddr string, msmtCSize int) {
 	udpObj := clientProtos.NewUdpObj("UdpConn1", addr, port, callSize)
+
+	// dont push the params through all function apis
+	streamCount = msmtStreams
+	msmtListenAddr = msmtAddr
+	msmtCallSize = msmtCSize
 
 	if idStorageInited == false {
 		idStorage = make(map[string]string)
@@ -462,8 +491,13 @@ func runUdpCtrlClient(addr string, port int, callSize int, msmtType string) {
 	}
 }
 
-func runUdpMcastCtrlClient(addr string, port int, callSize int, msmtType string) {
+func runUdpMcastCtrlClient(addr string, port int, callSize int, msmtType string, msmtStreams int, msmtAddr string, msmtCSize int) {
 	udpMcObj := clientProtos.NewUdpMcObj("UdpMcConn1", addr, port, callSize)
+
+	// dont push the params through all function apis
+	streamCount = msmtStreams
+	msmtListenAddr = msmtAddr
+	msmtCallSize = msmtCSize
 
 	if idStorageInited == false {
 		idStorage = make(map[string]string)
