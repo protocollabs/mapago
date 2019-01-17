@@ -121,3 +121,9 @@ type DataResultObj struct {
 	Timestamp_last  string `json:",omitempty"`
 	Received_bytes  string `json:",omitempty"`
 }
+
+type MsmtInfoObj struct {
+	Bytes   uint64
+	FirstTs string
+	LastTs  string
+}
