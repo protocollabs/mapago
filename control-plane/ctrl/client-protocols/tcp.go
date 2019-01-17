@@ -38,9 +38,7 @@ func NewTcpConnObj(tcpSock *net.TCPConn) *TcpConnObj {
 func (tcp *TcpObj) StartDiscovery(jsonData []byte) *shared.DataObj {
 	var repDataObj *shared.DataObj
 
-	fmt.Println("TcpObj StartDiscovery() called")
 	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
-
 	rAddr := tcp.connAddr + ":" + strconv.Itoa(tcp.connPort)
 	rTcpAddr, err := net.ResolveTCPAddr("tcp", rAddr)
 	if err != nil {
@@ -70,7 +68,6 @@ func (tcp *TcpObj) StartDiscovery(jsonData []byte) *shared.DataObj {
 			os.Exit(1)
 		}
 
-		fmt.Println("\nClient read num bytes: ", bytes)
 		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
 
 		if repDataObj.Type == shared.INFO_REPLY {
@@ -83,9 +80,7 @@ func (tcp *TcpObj) StartDiscovery(jsonData []byte) *shared.DataObj {
 func (tcp *TcpObj) StartMeasurement(jsonData []byte) *shared.DataObj {
 	var repDataObj *shared.DataObj
 
-	fmt.Println("TcpObj StartMeasurement() called")
 	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
-
 	rAddr := tcp.connAddr + ":" + strconv.Itoa(tcp.connPort)
 	rTcpAddr, err := net.ResolveTCPAddr("tcp", rAddr)
 	if err != nil {
@@ -115,11 +110,8 @@ func (tcp *TcpObj) StartMeasurement(jsonData []byte) *shared.DataObj {
 			os.Exit(1)
 		}
 
-		fmt.Println("\nClient read num bytes: ", bytes)
 		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
-
 		if repDataObj.Type == shared.MEASUREMENT_START_REPLY {
-			fmt.Printf("\nClient received an Measurement_Start_Reply!!!")
 			break
 		}
 	}
@@ -129,7 +121,6 @@ func (tcp *TcpObj) StartMeasurement(jsonData []byte) *shared.DataObj {
 func (tcp *TcpObj) StopMeasurement(jsonData []byte) *shared.DataObj {
 	var repDataObj *shared.DataObj
 
-	fmt.Println("TcpObj StopMeasurement() called")
 	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
 
 	rAddr := tcp.connAddr + ":" + strconv.Itoa(tcp.connPort)
@@ -162,11 +153,8 @@ func (tcp *TcpObj) StopMeasurement(jsonData []byte) *shared.DataObj {
 			os.Exit(1)
 		}
 
-		fmt.Println("\nClient read num bytes: ", bytes)
 		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
-
 		if repDataObj.Type == shared.MEASUREMENT_STOP_REPLY {
-			fmt.Printf("\nClient received an Measurement_Stop_Reply!!!")
 			break
 		}
 	}
@@ -176,9 +164,7 @@ func (tcp *TcpObj) StopMeasurement(jsonData []byte) *shared.DataObj {
 func (tcp *TcpObj) GetMeasurementInfo(jsonData []byte) *shared.DataObj {
 	var repDataObj *shared.DataObj
 
-	fmt.Println("TcpObj GetMeasurementInfo() called")
 	buf := make([]byte, tcp.connCallSize, tcp.connCallSize)
-
 	rAddr := tcp.connAddr + ":" + strconv.Itoa(tcp.connPort)
 	rTcpAddr, err := net.ResolveTCPAddr("tcp", rAddr)
 	if err != nil {
@@ -209,11 +195,8 @@ func (tcp *TcpObj) GetMeasurementInfo(jsonData []byte) *shared.DataObj {
 			os.Exit(1)
 		}
 
-		fmt.Println("\nClient read num bytes: ", bytes)
 		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
-
 		if repDataObj.Type == shared.MEASUREMENT_INFO_REPLY {
-			fmt.Printf("\nClient received an Measurement_Info_Reply!!!")
 			break
 		}
 	}
