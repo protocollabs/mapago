@@ -3,7 +3,6 @@ package udpThroughput
 import "fmt"
 import "os"
 import "net"
-import "sync"
 import "strconv"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
@@ -16,10 +15,7 @@ type UdpThroughputMsmt struct {
 	listenAddr      string
 	msmtId          string
 	msmtInfoStorage map[string]*shared.MsmtInfoObj
-
-	//OUTDATED
-	udpConnStorage      map[string]*net.UDPConn
-	udpConnStorageMutex sync.RWMutex
+	connStorage     map[string]*shared.UdpConn
 
 	/*
 		- this attribute can be used by start() to RECEIVE cmd from managementplane
@@ -45,7 +41,7 @@ func NewUdpThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared
 	udpMsmt := new(UdpThroughputMsmt)
 
 	udpMsmt.msmtInfoStorage = make(map[string]*shared.MsmtInfoObj)
-	udpMsmt.udpConnStorage = make(map[string]*net.UDPConn)
+	udpMsmt.connStorage = make(map[string]*shared.UdpConn)
 
 	fmt.Println("\nClient UDP request is: ", msmtStartReq)
 
@@ -74,7 +70,10 @@ func NewUdpThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared
 		msmtInfo := shared.MsmtInfoObj{}
 		udpMsmt.msmtInfoStorage[stream] = &msmtInfo
 
-		go udpMsmt.udpServerWorker(closeCh, heartbeatCh, startPort, c, &msmtInfo)
+		udpConn := shared.UdpConn{}
+		udpMsmt.connStorage[stream] = &udpConn
+
+		go udpMsmt.udpServerWorker(closeCh, heartbeatCh, startPort, c, &msmtInfo, &udpConn)
 	}
 
 	for c := 1; c <= udpMsmt.numStreams; c++ {
@@ -107,7 +106,7 @@ func NewUdpThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared
 	return udpMsmt
 }
 
-func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int, msmtInfo *shared.MsmtInfoObj) {
+func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int, msmtInfo *shared.MsmtInfoObj, conn *shared.UdpConn) {
 	var udpConn *net.UDPConn
 	fTsExists := false
 	cltAddrExists := false
@@ -126,10 +125,7 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 		udpConn, error = net.ListenUDP("udp", udpAddr)
 		if error == nil {
 			udpMsmt.usedPorts = append(udpMsmt.usedPorts, port)
-
-			// OUTDATED
-			udpMsmt.writeUdpConnStorage(stream, udpConn)
-
+			conn.SrvSock = udpConn
 			goHeartbeatCh <- true
 			break
 		}
@@ -170,20 +166,12 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 	}
 }
 
-func (udpMsmt *UdpThroughputMsmt) writeUdpConnStorage(stream string, sock *net.UDPConn) {
-	udpMsmt.udpConnStorageMutex.Lock()
-	udpMsmt.udpConnStorage[stream] = sock
-	udpMsmt.udpConnStorageMutex.Unlock()
-}
-
-// TODO
 func (udpMsmt *UdpThroughputMsmt) CloseConn() {
 	var msmtData map[string]string
 
-	// access udpConn directly
-	for streamId, sock := range udpMsmt.udpConnStorage {
+	for streamId, conn := range udpMsmt.connStorage {
 		fmt.Println("\nUDP closing: ", streamId)
-		sock.Close()
+		conn.SrvSock.Close()
 	}
 
 	msmtReply := new(shared.ChMsmt2Ctrl)
@@ -205,7 +193,6 @@ func (udpMsmt *UdpThroughputMsmt) GetMsmtInfo() {
 	msmtReply := new(shared.ChMsmt2Ctrl)
 	msmtReply.Status = "ok"
 
-	// prepare msmtReply.Data
 	for c := 1; c <= udpMsmt.numStreams; c++ {
 		stream := "stream" + strconv.Itoa(c)
 

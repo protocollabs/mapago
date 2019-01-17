@@ -134,3 +134,7 @@ type TcpConnObj struct {
 	SrvSock    *net.TCPListener
 	AcceptSock *net.TCPConn
 }
+
+type UdpConn struct {
+	SrvSock *net.UDPConn
+}
