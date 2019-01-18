@@ -15,17 +15,18 @@ import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
 var CONFIG_FILE = "conf.json"
-var MSMT_INFO_INTERVAL = 2
-var MSMT_STOP_INTERVAL = 10
 var MSMT_STREAMS = 1
+
 var msmtIdStorage map[string]string
 var idStorage map[string]string
 var msmtStorageInited = false
 var idStorageInited = false
-var streamCount int 
-var msmtListenAddr string
-var msmtCallSize int
 var seqNo uint64
+var msmtStreams *int 
+var msmtListenAddr *string
+var msmtCallSize *int
+var msmtUpdateTime *uint
+var msmtStopTime *uint
 
 func main() {
 	ctrlProto := flag.String("ctrl-protocol", "tcp", "tcp, udp or udp_mcast")
@@ -33,14 +34,15 @@ func main() {
 	port := flag.Int("ctrl-port", CTRL_PORT, "port for interacting with control channel")
 	callSize := flag.Int("call-size", DEF_BUFFER_SIZE, "control application buffer in bytes")
 	msmtType := flag.String("msmt-type", "tcp-throughput", "tcp-throughput or udp-throughput")
-	msmtStreams := flag.Int("msmt-streams", MSMT_STREAMS, "setting number of streams")
-	msmtLAddr := flag.String("msmt-listen-addr", "127.0.0.1", "localhost or userdefined addr")
-	msmtCSize := flag.Int("msmt-call-size", DEF_BUFFER_SIZE, "msmt application buffer in bytes")
-	
+	msmtStreams = flag.Int("msmt-streams", MSMT_STREAMS, "setting number of streams")
+	msmtListenAddr = flag.String("msmt-listen-addr", "127.0.0.1", "localhost or userdefined addr")
+	msmtCallSize = flag.Int("msmt-call-size", DEF_BUFFER_SIZE, "msmt application buffer in bytes")
+	msmtUpdateTime = flag.Uint("msmt-update-interval", 2, "msmt update interval in seconds")
+	msmtStopTime = flag.Uint("msmt-stop-interval", 10, "complete msmt time in seconds")
 
 	flag.Parse()
 
-	/* 
+	/*
 	fmt.Println("mapago(c) - 2018")
 	fmt.Println("Client side")
 	fmt.Println("Control protocol:", *ctrlProto)
@@ -49,29 +51,25 @@ func main() {
 	fmt.Println("Call-Size: ", *callSize)
 	fmt.Println("Msmt-type: ", *msmtType)
 	fmt.Println("Msmt-Streams: ", *msmtStreams)
-	fmt.Println("Msmt-Addr: ", *msmtLAddr)
-	fmt.Println("Msmt-CallSize: ", *msmtCSize)
+	fmt.Println("Msmt-Addr: ", *msmtListenAddr)
+	fmt.Println("Msmt-CallSize: ", *msmtCallSize)
+	fmt.Println("Update-Interval: ", *msmtUpdateTime)
+	fmt.Println("Msmt-time: ", *msmtStopTime)
 	*/
 
 	if *ctrlProto == "tcp" {
-		runTcpCtrlClient(*ctrlAddr, *port, *callSize, *msmtType, *msmtStreams, *msmtLAddr, *msmtCSize)
+		runTcpCtrlClient(*ctrlAddr, *port, *callSize, *msmtType)
 	} else if *ctrlProto == "udp" {
-		runUdpCtrlClient(*ctrlAddr, *port, *callSize, *msmtType, *msmtStreams, *msmtLAddr, *msmtCSize)
+		runUdpCtrlClient(*ctrlAddr, *port, *callSize, *msmtType)
 	} else if *ctrlProto == "udp_mcast" {
-		runUdpMcastCtrlClient(*ctrlAddr, *port, *callSize, *msmtType, *msmtStreams, *msmtLAddr, *msmtCSize)
+		runUdpMcastCtrlClient(*ctrlAddr, *port, *callSize, *msmtType)
 	} else {
 		panic("tcp, udp or udp_mcast as ctrl-proto")
 	}
 }
 
-func runTcpCtrlClient(addr string, port int, callSize int, msmtType string, msmtStreams int, msmtAddr string, msmtCSize int) {
+func runTcpCtrlClient(addr string, port int, callSize int, msmtType string) {
 	tcpObj := clientProtos.NewTcpObj("TcpDiscoveryConn", addr, port, callSize)
-
-	// dont push the params through all function apis
-	streamCount = msmtStreams
-	msmtListenAddr = msmtAddr
-	msmtCallSize = msmtCSize
-
 	seqNo = shared.ConstructSeqNo()
 
 	if idStorageInited == false {
@@ -79,7 +77,6 @@ func runTcpCtrlClient(addr string, port int, callSize int, msmtType string, msmt
 		idStorageInited = true
 	}
 
-	// TODO: Still some fields are HARDCODED
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.INFO_REQUEST
 
@@ -118,7 +115,6 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtStartReqConn", addr, port, callSize)
 
-	// TODO: Still some fields are HARDCODED
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
 		
@@ -165,21 +161,20 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 
 
 func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
-	tMsmtInfoReq := time.NewTimer(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
+	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
 	/* TODO: nicht zeitgetriggert sonder daten getriggert
 	wenn letzte daten erhalten => close conns
 	würde Probleme geben bei starker packet verlustrate
 	wir sagen 10s und während dessen empfangen wir nichts
 	dann bauen wir schon verbindung ab => client ist immer noch im retransmit
 	*/
-	tMsmtStopReq := time.NewTimer(time.Duration(MSMT_STOP_INTERVAL) * time.Second)
+	tMsmtStopReq := time.NewTimer(time.Duration(*msmtStopTime) * time.Second)
 
 	for {
 		select {
 		case <-tMsmtInfoReq.C:
 			sendTcpMsmtInfoRequest(addr, port, callSize)
-
-			tMsmtInfoReq.Reset(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
+			tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
 
 		case <-tMsmtStopReq.C:
 			tMsmtInfoReq.Stop()
@@ -201,7 +196,6 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 func sendTcpMsmtInfoRequest(addr string, port int, callSize int) {
 	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtInfoReqConn", addr, port, callSize)
 
-	// TODO: build json "dummy" message
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_INFO_REQUEST
 	
@@ -211,7 +205,6 @@ func sendTcpMsmtInfoRequest(addr string, port int, callSize int) {
 		fmt.Println("\nFound not the id")
 	}
 	
-	// TODO: hardcoded atm
 	seqNo++
 	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
@@ -235,7 +228,6 @@ func sendTcpMsmtInfoRequest(addr string, port int, callSize int) {
 func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
 	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtStopReqConn", addr, port, callSize)
 
-	// TODO: build json "dummy" message
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_STOP_REQUEST
 	
@@ -269,7 +261,6 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("UdpThroughputMsmtConn", addr, port, callSize)
 
-	// TODO: Still some fields are HARDCODED
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
 	
@@ -312,21 +303,21 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 
 
 func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
-	tMsmtInfoReq := time.NewTimer(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
+	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
 	/* TODO: nicht zeitgetriggert sonder daten getriggert
 	wenn letzte daten erhalten => close conns
 	würde Probleme geben bei starker packet verlustrate
 	wir sagen 10s und während dessen empfangen wir nichts
 	dann bauen wir schon verbindung ab => client ist immer noch im retransmit
 	*/
-	tMsmtStopReq := time.NewTimer(time.Duration(MSMT_STOP_INTERVAL) * time.Second)
+	tMsmtStopReq := time.NewTimer(time.Duration(*msmtStopTime) * time.Second)
 
 	for {
 		select {
 		case <-tMsmtInfoReq.C:
 			sendUdpMsmtInfoRequest(addr, port, callSize)
 
-			tMsmtInfoReq.Reset(time.Duration(MSMT_INFO_INTERVAL) * time.Second)
+			tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
 
 		case <-tMsmtStopReq.C:
 			tMsmtInfoReq.Stop()
@@ -351,7 +342,6 @@ func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 func sendUdpMsmtInfoRequest(addr string, port int, callSize int) {
 	tcpObj := clientProtos.NewTcpObj("UdpThroughputMsmtInfoReqConn", addr, port, callSize)
 
-	// TODO: build json "dummy" message
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_INFO_REQUEST
 	
@@ -361,7 +351,6 @@ func sendUdpMsmtInfoRequest(addr string, port int, callSize int) {
 		fmt.Println("\nFound not the id")
 	}
 	
-	// TODO: hardcoded atm
 	seqNo++
 	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
@@ -380,7 +369,6 @@ func sendUdpMsmtInfoRequest(addr string, port int, callSize int) {
 func sendUdpMsmtStopRequest(addr string, port int, callSize int) {
 	tcpObj := clientProtos.NewTcpObj("UdpThroughputMsmtStopReqConn", addr, port, callSize)
 
-	// TODO: build json "dummy" message
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_STOP_REQUEST
 	
@@ -412,23 +400,17 @@ func constructMeasurementObj(name string, msmtType string) *shared.MeasurementOb
 	// we dont need a configuration anymore
 //	confObj := shared.ConstructConfiguration(CONFIG_FILE)
 	confObj := new(shared.ConfigurationObj)
-	confObj.Worker = strconv.Itoa(streamCount)
-	confObj.Listen_addr = msmtListenAddr
-	confObj.Call_size = "64768"
+	confObj.Worker = strconv.Itoa(*msmtStreams)
+	confObj.Listen_addr = *msmtListenAddr
+	confObj.Call_size = strconv.Itoa(*msmtCallSize)
 
 
 	MsmtObj.Configuration = *confObj
 	return MsmtObj
 }
 
-func runUdpCtrlClient(addr string, port int, callSize int, msmtType string, msmtStreams int, msmtAddr string, msmtCSize int) {
+func runUdpCtrlClient(addr string, port int, callSize int, msmtType string) {
 	udpObj := clientProtos.NewUdpObj("UdpConn1", addr, port, callSize)
-
-	// dont push the params through all function apis
-	streamCount = msmtStreams
-	msmtListenAddr = msmtAddr
-	msmtCallSize = msmtCSize
-
 	seqNo = shared.ConstructSeqNo()
 
 	if idStorageInited == false {
@@ -436,7 +418,6 @@ func runUdpCtrlClient(addr string, port int, callSize int, msmtType string, msmt
 		idStorageInited = true
 	}
 
-	// TODO: Still some fields are HARDCODED
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.INFO_REQUEST
 
@@ -469,14 +450,8 @@ func runUdpCtrlClient(addr string, port int, callSize int, msmtType string, msmt
 	}
 }
 
-func runUdpMcastCtrlClient(addr string, port int, callSize int, msmtType string, msmtStreams int, msmtAddr string, msmtCSize int) {
+func runUdpMcastCtrlClient(addr string, port int, callSize int, msmtType string) {
 	udpMcObj := clientProtos.NewUdpMcObj("UdpMcConn1", addr, port, callSize)
-
-	// dont push the params through all function apis
-	streamCount = msmtStreams
-	msmtListenAddr = msmtAddr
-	msmtCallSize = msmtCSize
-
 	seqNo = shared.ConstructSeqNo()
 
 	if idStorageInited == false {
@@ -484,7 +459,6 @@ func runUdpMcastCtrlClient(addr string, port int, callSize int, msmtType string,
 		idStorageInited = true
 	}
 
-	// TODO: build json "dummy" message
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.INFO_REQUEST
 
