@@ -15,7 +15,7 @@ export GOBIN=$HOME/go/bin
 go get github.com/protocollabs/mapago
 cd $GOPATH/github.com/protocollabs/mapago
 make install
-mapago-server -uc-listen-addr 169.254.206.129
+mapago-server
 mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp -msmt-type tcp-throughput
 ```
 
