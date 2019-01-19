@@ -16,7 +16,7 @@ go get github.com/protocollabs/mapago
 cd $GOPATH/github.com/protocollabs/mapago
 make install
 mapago-server
-mapago-client -ctrl-addr 169.254.206.129 -ctrl-protocol tcp -msmt-type tcp-throughput
+mapago-client -ctrl-addr localhost -ctrl-protocol tcp -msmt-type tcp-throughput
 ```
 
 ## Design Principles
