@@ -39,7 +39,7 @@ data. This a script can trust that the outputed string is a pure JSON string (if
 and not garbaged with other information.
 
 ```
-maparo <args> | python3 graph-script.py -o output.png
+mapago-client <args> 2>/dev/null | ./scripts/evaluation.py
 ```
 
 ## Parsing Format
