@@ -1,6 +1,9 @@
 mapago
 !cmd/mapago
 
+mapago-client
+mapago-server
+
 release/
 
 *.swp
