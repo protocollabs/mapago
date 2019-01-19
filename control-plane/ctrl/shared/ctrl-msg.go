@@ -1,5 +1,7 @@
 package shared
 
+import "net"
+
 // channel result
 
 const (
@@ -120,4 +122,19 @@ type DataResultObj struct {
 	Timestamp_first string `json:",omitempty"`
 	Timestamp_last  string `json:",omitempty"`
 	Received_bytes  string `json:",omitempty"`
+}
+
+type MsmtInfoObj struct {
+	Bytes   uint64
+	FirstTs string
+	LastTs  string
+}
+
+type TcpConnObj struct {
+	SrvSock    *net.TCPListener
+	AcceptSock *net.TCPConn
+}
+
+type UdpConn struct {
+	SrvSock *net.UDPConn
 }

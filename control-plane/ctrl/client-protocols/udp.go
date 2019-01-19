@@ -42,9 +42,7 @@ func NewUdpConnObj(udpSock *net.UDPConn, udpAddr *net.UDPAddr) *UdpConnObj {
 func (udp *UdpObj) Start(jsonData []byte) *shared.DataObj {
 	var repDataObj *shared.DataObj
 
-	fmt.Println("UdpObj Start() here")
 	buf := make([]byte, udp.connCallSize, udp.connCallSize)
-
 	rAddr := udp.connAddr + ":" + strconv.Itoa(udp.connPort)
 	udpAddr, err := net.ResolveUDPAddr("udp", rAddr)
 	if err != nil {
@@ -76,9 +74,8 @@ func (udp *UdpObj) Start(jsonData []byte) *shared.DataObj {
 			fmt.Printf("\nUDP Client: Cannot Read")
 			os.Exit(1)
 		}
-		fmt.Printf("Client read num bytes: %d", bytes)
-		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
 
+		repDataObj = shared.ConvJsonToDataStruct(buf[:bytes])
 		if repDataObj.Type == shared.INFO_REPLY {
 			break
 		}

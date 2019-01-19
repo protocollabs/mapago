@@ -65,7 +65,6 @@ func RunServer(lUcAddr string, lMcAddr string, port int, callSize int) {
 		case shared.MEASUREMENT_START_REQUEST:
 			go func() {
 				fmt.Println("\n------------- MEASUREMENT_START_REQUEST -------------")
-
 				/*
 					DISCUSS:
 					- recvCh is a local variable saved on the stack of this goroutine

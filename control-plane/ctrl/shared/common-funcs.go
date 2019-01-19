@@ -11,12 +11,11 @@ import "time"
 import "runtime"
 import "path/filepath"
 import "strconv"
+import "math/rand"
 
 const DATE_FMT = "2006-01-02 15:04:05.000000000"
 
 func ConvJsonToDataStruct(jsonData []byte) *DataObj {
-	// debug fmt.Printf("\n Converting json data: % x", jsonData)
-
 	dataObj := new(DataObj)
 
 	// FIXED
@@ -35,8 +34,6 @@ func ConvJsonToDataStruct(jsonData []byte) *DataObj {
 }
 
 func ConvDataStructToJson(data *DataObj) []byte {
-	fmt.Println("\nConverting datastruct ", *data)
-
 	var resB []byte
 
 	// construct type field
@@ -173,4 +170,13 @@ func ConvMapToStr(m map[string]string) string {
 		}
 	}
 	return buf.String()
+}
+
+func ConstructSeqNo() uint64 {
+	src := rand.NewSource(time.Now().UnixNano())
+	rnd := rand.New(src)
+
+	seqStart := rnd.Uint32()
+	seqRange := uint64(seqStart)
+	return seqRange
 }

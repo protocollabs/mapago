@@ -3,26 +3,19 @@ package udpThroughput
 import "fmt"
 import "os"
 import "net"
-import "sync"
 import "strconv"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 var UPDATE_INTERVAL = 5
 
 type UdpThroughputMsmt struct {
-	numStreams          int
-	usedPorts           []int
-	callSize            int
-	listenAddr          string
-	msmtId              string
-	byteStorage         map[string]uint64
-	byteStorageMutex    sync.RWMutex
-	fTsStorage          map[string]string
-	fTsStorageMutex     sync.RWMutex
-	lTsStorage          map[string]string
-	lTsStorageMutex     sync.RWMutex
-	udpConnStorage      map[string]*net.UDPConn
-	udpConnStorageMutex sync.RWMutex
+	numStreams      int
+	usedPorts       []int
+	callSize        int
+	listenAddr      string
+	msmtId          string
+	msmtInfoStorage map[string]*shared.MsmtInfoObj
+	connStorage     map[string]*shared.UdpConn
 
 	/*
 		- this attribute can be used by start() to RECEIVE cmd from managementplane
@@ -47,10 +40,8 @@ func NewUdpThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared
 	closeCh := make(chan interface{})
 	udpMsmt := new(UdpThroughputMsmt)
 
-	udpMsmt.byteStorage = make(map[string]uint64)
-	udpMsmt.fTsStorage = make(map[string]string)
-	udpMsmt.lTsStorage = make(map[string]string)
-	udpMsmt.udpConnStorage = make(map[string]*net.UDPConn)
+	udpMsmt.msmtInfoStorage = make(map[string]*shared.MsmtInfoObj)
+	udpMsmt.connStorage = make(map[string]*shared.UdpConn)
 
 	fmt.Println("\nClient UDP request is: ", msmtStartReq)
 
@@ -74,7 +65,15 @@ func NewUdpThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared
 	udpMsmt.closeConnCh = closeCh
 
 	for c := 1; c <= udpMsmt.numStreams; c++ {
-		go udpMsmt.udpServerWorker(closeCh, heartbeatCh, startPort, c)
+		stream := "stream" + strconv.Itoa(c)
+
+		msmtInfo := shared.MsmtInfoObj{}
+		udpMsmt.msmtInfoStorage[stream] = &msmtInfo
+
+		udpConn := shared.UdpConn{}
+		udpMsmt.connStorage[stream] = &udpConn
+
+		go udpMsmt.udpServerWorker(closeCh, heartbeatCh, startPort, c, &msmtInfo, &udpConn)
 	}
 
 	for c := 1; c <= udpMsmt.numStreams; c++ {
@@ -107,7 +106,7 @@ func NewUdpThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared
 	return udpMsmt
 }
 
-func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int) {
+func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int, msmtInfo *shared.MsmtInfoObj, conn *shared.UdpConn) {
 	var udpConn *net.UDPConn
 	fTsExists := false
 	cltAddrExists := false
@@ -125,11 +124,8 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 
 		udpConn, error = net.ListenUDP("udp", udpAddr)
 		if error == nil {
-			// debug fmt.Printf("\nCan listen on addr: %s\n", listen)
 			udpMsmt.usedPorts = append(udpMsmt.usedPorts, port)
-
-			udpMsmt.writeUdpConnStorage(stream, udpConn)
-
+			conn.SrvSock = udpConn
 			goHeartbeatCh <- true
 			break
 		}
@@ -157,74 +153,25 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 			cltAddrExists = true
 		}
 
-		udpMsmt.writeByteStorage(stream, uint64(bytes))
+		msmtInfo.Bytes = uint64(bytes)
 
 		if fTsExists == false {
 			fTs := shared.ConvCurrDateToStr()
-			udpMsmt.writefTsStorage(stream, fTs)
+			msmtInfo.FirstTs = fTs
 			fTsExists = true
 		}
 
 		lTs := shared.ConvCurrDateToStr()
-		udpMsmt.writelTsStorage(stream, lTs)
+		msmtInfo.LastTs = lTs
 	}
-}
-
-func (udpMsmt *UdpThroughputMsmt) writefTsStorage(stream string, ts string) {
-	udpMsmt.fTsStorageMutex.Lock()
-	udpMsmt.fTsStorage[stream] = ts
-	udpMsmt.fTsStorageMutex.Unlock()
-}
-
-func (udpMsmt *UdpThroughputMsmt) readfTsStorage(stream string) string {
-	udpMsmt.fTsStorageMutex.RLock()
-	ts := udpMsmt.fTsStorage[stream]
-	udpMsmt.fTsStorageMutex.RUnlock()
-
-	return ts
-}
-
-func (udpMsmt *UdpThroughputMsmt) writelTsStorage(stream string, ts string) {
-	udpMsmt.lTsStorageMutex.Lock()
-	udpMsmt.lTsStorage[stream] = ts
-	udpMsmt.lTsStorageMutex.Unlock()
-}
-
-func (udpMsmt *UdpThroughputMsmt) readlTsStorage(stream string) string {
-	udpMsmt.lTsStorageMutex.RLock()
-	ts := udpMsmt.lTsStorage[stream]
-	udpMsmt.lTsStorageMutex.RUnlock()
-
-	return ts
-}
-
-func (udpMsmt *UdpThroughputMsmt) writeByteStorage(stream string, bytes uint64) {
-	udpMsmt.byteStorageMutex.Lock()
-	udpMsmt.byteStorage[stream] = udpMsmt.byteStorage[stream] + bytes
-	udpMsmt.byteStorageMutex.Unlock()
-}
-
-// we can precise which key to address
-func (udpMsmt *UdpThroughputMsmt) readByteStorage(stream string) uint64 {
-	udpMsmt.byteStorageMutex.RLock()
-	bytes := udpMsmt.byteStorage[stream]
-	udpMsmt.byteStorageMutex.RUnlock()
-
-	return bytes
-}
-
-func (udpMsmt *UdpThroughputMsmt) writeUdpConnStorage(stream string, sock *net.UDPConn) {
-	udpMsmt.udpConnStorageMutex.Lock()
-	udpMsmt.udpConnStorage[stream] = sock
-	udpMsmt.udpConnStorageMutex.Unlock()
 }
 
 func (udpMsmt *UdpThroughputMsmt) CloseConn() {
 	var msmtData map[string]string
 
-	for streamId, sock := range udpMsmt.udpConnStorage {
+	for streamId, conn := range udpMsmt.connStorage {
 		fmt.Println("\nUDP closing: ", streamId)
-		sock.Close()
+		conn.SrvSock.Close()
 	}
 
 	msmtReply := new(shared.ChMsmt2Ctrl)
@@ -246,21 +193,18 @@ func (udpMsmt *UdpThroughputMsmt) GetMsmtInfo() {
 	msmtReply := new(shared.ChMsmt2Ctrl)
 	msmtReply.Status = "ok"
 
-	// prepare msmtReply.Data
 	for c := 1; c <= udpMsmt.numStreams; c++ {
 		stream := "stream" + strconv.Itoa(c)
-		bytes := udpMsmt.readByteStorage(stream)
 
-		// create single data element:
-		// i.e. read stream bytes, timestamp calculation
+		msmtStruct := udpMsmt.msmtInfoStorage[stream]
+
 		dataElement := new(shared.DataResultObj)
-		dataElement.Received_bytes = strconv.Itoa(int(bytes))
-		dataElement.Timestamp_first = udpMsmt.readfTsStorage(stream)
-		dataElement.Timestamp_last = udpMsmt.readlTsStorage(stream)
+		dataElement.Received_bytes = strconv.Itoa(int(msmtStruct.Bytes))
+		dataElement.Timestamp_first = msmtStruct.FirstTs
+		dataElement.Timestamp_last = msmtStruct.LastTs
 
-		// add single DataElement to slice
 		msmtData = append(msmtData, *dataElement)
-		// debug fmt.Println("\nmsmtData is: ", msmtData)
+		fmt.Println("\nmsmtData is: ", msmtData)
 	}
 
 	msmtReply.Data = msmtData

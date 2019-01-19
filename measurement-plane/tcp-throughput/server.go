@@ -4,28 +4,18 @@ import "fmt"
 import "os"
 import "net"
 import "strconv"
-import "sync"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 var UPDATE_INTERVAL = 5
 
 type TcpMsmtObj struct {
-	numStreams          int
-	usedPorts           []int
-	callSize            int
-	listenAddr          string
-	msmtId              string
-	byteStorage         map[string]uint64
-	byteStorageMutex    sync.RWMutex
-	fTsStorage          map[string]string
-	fTsStorageMutex     sync.RWMutex
-	lTsStorage          map[string]string
-	lTsStorageMutex     sync.RWMutex
-	tcpConnStorage      map[string]*net.TCPConn
-	tcpConnStorageMutex sync.RWMutex
-
-	listenerStorage      map[string]*net.TCPListener
-	listenerStorageMutex sync.RWMutex
+	numStreams      int
+	usedPorts       []int
+	callSize        int
+	listenAddr      string
+	msmtId          string
+	msmtInfoStorage map[string]*shared.MsmtInfoObj
+	connStorage     map[string]*shared.TcpConnObj
 
 	/*
 		- this attribute can be used by start() to RECEIVE cmd from managementplane
@@ -50,12 +40,8 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	closeCh := make(chan interface{})
 	tcpMsmt := new(TcpMsmtObj)
 
-	tcpMsmt.byteStorage = make(map[string]uint64)
-	tcpMsmt.fTsStorage = make(map[string]string)
-	tcpMsmt.lTsStorage = make(map[string]string)
-	tcpMsmt.tcpConnStorage = make(map[string]*net.TCPConn)
-	tcpMsmt.listenerStorage = make(map[string]*net.TCPListener)
-
+	tcpMsmt.msmtInfoStorage = make(map[string]*shared.MsmtInfoObj)
+	tcpMsmt.connStorage = make(map[string]*shared.TcpConnObj)
 	fmt.Println("\nClient TCP request is: ", msmtStartReq)
 
 	tcpMsmt.numStreams, err = strconv.Atoi(msmtStartReq.Measurement.Configuration.Worker)
@@ -70,7 +56,6 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 		os.Exit(1)
 	}
 
-	// TODO: this should be the id sent to client
 	tcpMsmt.msmtId = msmtId
 	tcpMsmt.listenAddr = msmtStartReq.Measurement.Configuration.Listen_addr
 	tcpMsmt.msmtMgmt2MsmtCh = msmtCh
@@ -78,7 +63,15 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	tcpMsmt.closeConnCh = closeCh
 
 	for c := 1; c <= tcpMsmt.numStreams; c++ {
-		go tcpMsmt.tcpServerWorker(closeCh, heartbeatCh, startPort, c)
+		stream := "stream" + strconv.Itoa(c)
+
+		msmtInfo := shared.MsmtInfoObj{}
+		tcpMsmt.msmtInfoStorage[stream] = &msmtInfo
+
+		tcpConns := shared.TcpConnObj{}
+		tcpMsmt.connStorage[stream] = &tcpConns
+
+		go tcpMsmt.tcpServerWorker(closeCh, heartbeatCh, startPort, c, &msmtInfo, &tcpConns)
 	}
 
 	for c := 1; c <= tcpMsmt.numStreams; c++ {
@@ -111,7 +104,7 @@ func NewTcpMsmtObj(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared.ChMsmt
 	return tcpMsmt
 }
 
-func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int) {
+func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int, msmtInfoPtr *shared.MsmtInfoObj, connPtr *shared.TcpConnObj) {
 	var listener *net.TCPListener
 	fTsExists := false
 	stream := "stream" + strconv.Itoa(streamIndex)
@@ -131,9 +124,7 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 		if error == nil {
 			// debug fmt.Printf("\nCan listen on addr: %s\n", listen)
 			tcpMsmt.usedPorts = append(tcpMsmt.usedPorts, port)
-
-			tcpMsmt.writeListenerStorage(stream, listener)
-
+			connPtr.SrvSock = listener
 			goHeartbeatCh <- true
 			break
 		}
@@ -148,16 +139,13 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 	}
 
 	fmt.Printf("Connection from %s\n", conn.RemoteAddr())
-	// The accept socket must be saved  or we get a concurrent write race condition
-	tcpMsmt.writeTcpConnStorage(stream, conn)
+	connPtr.AcceptSock = conn
 
 	message := make([]byte, tcpMsmt.callSize, tcpMsmt.callSize)
 
 	for {
 		bytes, error := conn.Read(message)
 		if error != nil {
-
-			// differ cases of error
 			if error.(*net.OpError).Err.Error() == "use of closed network connection" {
 				// debug fmt.Println("\nTCP Closed network detected! I am ignoring this")
 				break
@@ -167,86 +155,26 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 			os.Exit(1)
 		}
 
-		tcpMsmt.writeByteStorage(stream, uint64(bytes))
+		msmtInfoPtr.Bytes = uint64(bytes)
 
-		// maybe we could also do this when receing the actual data
 		if fTsExists == false {
 			fTs := shared.ConvCurrDateToStr()
-			tcpMsmt.writefTsStorage(stream, fTs)
+			msmtInfoPtr.FirstTs = fTs
 			fTsExists = true
 		}
 
 		lTs := shared.ConvCurrDateToStr()
-		tcpMsmt.writelTsStorage(stream, lTs)
+		msmtInfoPtr.LastTs = lTs
 	}
-}
-
-func (tcpMsmt *TcpMsmtObj) writefTsStorage(stream string, ts string) {
-	tcpMsmt.fTsStorageMutex.Lock()
-	tcpMsmt.fTsStorage[stream] = ts
-	tcpMsmt.fTsStorageMutex.Unlock()
-}
-
-func (tcpMsmt *TcpMsmtObj) readfTsStorage(stream string) string {
-	ts := tcpMsmt.fTsStorage[stream]
-
-	return ts
-}
-
-func (tcpMsmt *TcpMsmtObj) writelTsStorage(stream string, ts string) {
-	tcpMsmt.lTsStorageMutex.Lock()
-	tcpMsmt.lTsStorage[stream] = ts
-	tcpMsmt.lTsStorageMutex.Unlock()
-}
-
-func (tcpMsmt *TcpMsmtObj) readlTsStorage(stream string) string {
-	ts := tcpMsmt.lTsStorage[stream]
-
-	return ts
-}
-
-func (tcpMsmt *TcpMsmtObj) writeByteStorage(stream string, bytes uint64) {
-	tcpMsmt.byteStorageMutex.Lock()
-	tcpMsmt.byteStorage[stream] = tcpMsmt.byteStorage[stream] + bytes
-	tcpMsmt.byteStorageMutex.Unlock()
-}
-
-// we can precise which key to address
-func (tcpMsmt *TcpMsmtObj) readByteStorage(stream string) uint64 {
-	bytes := tcpMsmt.byteStorage[stream]
-
-	return bytes
-}
-
-func (tcpMsmt *TcpMsmtObj) writeTcpConnStorage(stream string, acceptSock *net.TCPConn) {
-	tcpMsmt.tcpConnStorageMutex.Lock()
-	tcpMsmt.tcpConnStorage[stream] = acceptSock
-	tcpMsmt.tcpConnStorageMutex.Unlock()
-}
-
-func (tcpMsmt *TcpMsmtObj) writeListenerStorage(stream string, serverSock *net.TCPListener) {
-	tcpMsmt.listenerStorageMutex.Lock()
-	tcpMsmt.listenerStorage[stream] = serverSock
-	tcpMsmt.listenerStorageMutex.Unlock()
 }
 
 func (tcpMsmt *TcpMsmtObj) CloseConn() {
 	var msmtData map[string]string
 
-	/*
-		for i := 0; i < tcpMsmt.numStreams; i++ {
-			tcpMsmt.closeConnCh <- "close"
-		}
-	*/
-
-	for streamId, acceptSock := range tcpMsmt.tcpConnStorage {
-		fmt.Println("\nTCP accept sock closing: ", streamId)
-		acceptSock.Close()
-	}
-
-	for streamId, srvSock := range tcpMsmt.listenerStorage {
-		fmt.Println("\nTCP srv sock closing: ", streamId)
-		srvSock.Close()
+	for c, tcpConns := range tcpMsmt.connStorage {
+		fmt.Println("\nClosing stream: ", c)
+		tcpConns.AcceptSock.Close()
+		tcpConns.SrvSock.Close()
 	}
 
 	msmtReply := new(shared.ChMsmt2Ctrl)
@@ -272,18 +200,16 @@ func (tcpMsmt *TcpMsmtObj) GetMsmtInfo() {
 	// prepare msmtReply.Data
 	for c := 1; c <= tcpMsmt.numStreams; c++ {
 		stream := "stream" + strconv.Itoa(c)
-		bytes := tcpMsmt.readByteStorage(stream)
 
-		// create single data element:
-		// i.e. read stream bytes, timestamp calculation
+		msmtStruct := tcpMsmt.msmtInfoStorage[stream]
+
 		dataElement := new(shared.DataResultObj)
-		dataElement.Received_bytes = strconv.Itoa(int(bytes))
-		dataElement.Timestamp_first = tcpMsmt.readfTsStorage(stream)
-		dataElement.Timestamp_last = tcpMsmt.readlTsStorage(stream)
+		dataElement.Received_bytes = strconv.Itoa(int(msmtStruct.Bytes))
+		dataElement.Timestamp_first = msmtStruct.FirstTs
+		dataElement.Timestamp_last = msmtStruct.LastTs
 
-		// add single DataElement to slice
 		msmtData = append(msmtData, *dataElement)
-		// debug fmt.Println("\nmsmtData is: ", msmtData)
+		fmt.Println("\nmsmtData is: ", msmtData)
 	}
 
 	msmtReply.Data = msmtData
