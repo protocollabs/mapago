@@ -7,6 +7,7 @@ import "os"
 import "sync"
 import "time"
 import "strconv"
+import "strings"
 import "github.com/protocollabs/mapago/control-plane/ctrl/client-protocols"
 import "github.com/protocollabs/mapago/measurement-plane/tcp-throughput"
 import "github.com/protocollabs/mapago/measurement-plane/udp-throughput"
@@ -219,7 +220,7 @@ func sendTcpMsmtInfoRequest(addr string, port int, callSize int) {
 	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
 
 	msmtInfoRep := tcpObj.GetMeasurementInfo(reqJson)
-	fmt.Println(msmtInfoRep)
+	prepareOutput(msmtInfoRep)
 }
 
 
@@ -363,7 +364,7 @@ func sendUdpMsmtInfoRequest(addr string, port int, callSize int) {
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	msmtInfoRep := tcpObj.GetMeasurementInfo(reqJson)
-	fmt.Println(msmtInfoRep)
+	prepareOutput(msmtInfoRep)
 }
 
 func sendUdpMsmtStopRequest(addr string, port int, callSize int) {
@@ -497,5 +498,39 @@ func validateDiscovery(req *shared.DataObj, rep *shared.DataObj) error {
 	}
 
 	return nil
+}
+
+func prepareOutput(msmtInfoRep *shared.DataObj) {
+	var evaluationStr strings.Builder
+
+	// 1. add prefix
+	evaluationStr.WriteString("[ ")
+
+	// 2. sweep through data elements
+	for index, dataElement := range msmtInfoRep.Data.DataElements {
+		// 3. write ts-start
+		evaluationStr.WriteString("{ \"ts-start\" : \"")
+		evaluationStr.WriteString(dataElement.Timestamp_first)
+		evaluationStr.WriteString("\", ")
+
+		// 4. write ts-end
+		evaluationStr.WriteString("\"ts-end\" : \"")
+		evaluationStr.WriteString(dataElement.Timestamp_last)
+		evaluationStr.WriteString("\", ")
+
+		// 5. write bytes
+		evaluationStr.WriteString("\"bytes\" : \"")
+		evaluationStr.WriteString(dataElement.Received_bytes)
+		evaluationStr.WriteString("\"}")
+
+		if index != len(msmtInfoRep.Data.DataElements) - 1 {
+			evaluationStr.WriteString(", ")			
+		}
+	}
+
+	// 6. add suffix
+	evaluationStr.WriteString(" ]")
+
+	fmt.Println(evaluationStr.String())
 }
 

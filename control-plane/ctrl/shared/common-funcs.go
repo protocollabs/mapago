@@ -13,7 +13,7 @@ import "path/filepath"
 import "strconv"
 import "math/rand"
 
-const DATE_FMT = "2006-01-02 15:04:05.000000000"
+const DATE_FMT = "2006-01-02T15:04:05.000000"
 
 func ConvJsonToDataStruct(jsonData []byte) *DataObj {
 	dataObj := new(DataObj)

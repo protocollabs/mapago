@@ -248,7 +248,7 @@ func constructMsmtInfoReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2Ct
 	}
 
 	repDataObj.Measurement_id = reqDataObj.Measurement_id
-	repDataObj.Data.DataElement = msmtData
+	repDataObj.Data.DataElements = msmtData
 
 	// TODO: Add the timestamps
 	return repDataObj

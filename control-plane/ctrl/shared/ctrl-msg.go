@@ -115,7 +115,7 @@ type ConfigurationObj struct {
 }
 
 type DataCollectionObj struct {
-	DataElement []DataResultObj
+	DataElements []DataResultObj
 }
 
 type DataResultObj struct {
