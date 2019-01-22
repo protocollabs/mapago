@@ -3,6 +3,7 @@ package tcpThroughput
 import "fmt"
 import "os"
 import "net"
+import "io"
 import "strconv"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
@@ -144,14 +145,17 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 	message := make([]byte, tcpMsmt.callSize, tcpMsmt.callSize)
 
 	for {
-		bytes, error := conn.Read(message)
-		if error != nil {
-			if error.(*net.OpError).Err.Error() == "use of closed network connection" {
-				// debug fmt.Println("\nTCP Closed network detected! I am ignoring this")
+		bytes, err := conn.Read(message)
+		if err != nil {
+			if err == io.EOF {
 				break
 			}
 
-			fmt.Printf("TCP server worker! Cannot read: %s\n", error)
+			if err.(*net.OpError).Err.Error() == "use of closed network connection" {
+				break
+			}
+
+			// something different serious...
 			os.Exit(1)
 		}
 
