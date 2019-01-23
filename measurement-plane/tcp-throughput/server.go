@@ -159,7 +159,7 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 			os.Exit(1)
 		}
 
-		msmtInfoPtr.Bytes = uint64(bytes)
+		msmtInfoPtr.Bytes += uint64(bytes)
 
 		if fTsExists == false {
 			fTs := shared.ConvCurrDateToStr()
@@ -189,7 +189,9 @@ func (tcpMsmt *TcpMsmtObj) CloseConn() {
 	msmtData["msg"] = "all modules closed"
 	msmtReply.Data = msmtData
 
-	// TODO: we have to attach the final Measurement Data
+	// TODO: Include the final measurement data => This will solve the "wrong" time duration calc
+	// PROBLEM: We must hand over a combination of strings AND array of results
+	// but we can only type cast to one of them?!
 	go func() {
 		tcpMsmt.msmt2CtrlCh <- *msmtReply
 	}()

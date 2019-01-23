@@ -22,6 +22,7 @@ pp = pprint.PrettyPrinter(indent=4)
 
 # read from pipe (stdin) until end of program
 lines_json = sys.stdin.read()
+print("json lines", lines_json)
 
 # we got one lines of json, convert everyline
 # into our "db"
@@ -74,7 +75,10 @@ for entry in db:
 
 measurement_length = (datetime_max - datetime_min).total_seconds()
 bytes_sec = bytes_rx / measurement_length
+Mbits_sec = (bytes_sec * 8) / 10**6
 print('overall bandwith: {} bytes/sec'.format(bytes_sec))
+print('overall bandwith: {} Mbits/sec'.format(Mbits_sec))
+
 print('measurement length: {} sec]'.format(measurement_length))
 print('received: {} bytes]'.format(bytes_rx))
 
