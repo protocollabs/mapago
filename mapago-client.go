@@ -23,23 +23,23 @@ var idStorage map[string]string
 var msmtStorageInited = false
 var idStorageInited = false
 var seqNo uint64
-var msmtStreams *int 
-var msmtListenAddr *string
-var msmtCallSize *int
+var streams *int 
+var serverAddr *string
+var bufLength *int
 var msmtUpdateTime *uint
-var msmtStopTime *uint
+var msmtTime *uint
 
 func main() {
 	ctrlProto := flag.String("ctrl-protocol", "tcp", "tcp, udp or udp_mcast")
 	ctrlAddr := flag.String("ctrl-addr", "127.0.0.1", "localhost or userdefined addr")
 	port := flag.Int("ctrl-port", CTRL_PORT, "port for interacting with control channel")
 	callSize := flag.Int("call-size", DEF_BUFFER_SIZE, "control application buffer in bytes")
-	msmtType := flag.String("msmt-type", "tcp-throughput", "tcp-throughput or udp-throughput")
-	msmtStreams = flag.Int("msmt-streams", MSMT_STREAMS, "setting number of streams")
-	msmtListenAddr = flag.String("msmt-listen-addr", "127.0.0.1", "localhost or userdefined addr")
-	msmtCallSize = flag.Int("msmt-call-size", DEF_BUFFER_SIZE, "msmt application buffer in bytes")
-	msmtUpdateTime = flag.Uint("msmt-update-interval", 2, "msmt update interval in seconds")
-	msmtStopTime = flag.Uint("msmt-stop-interval", 10, "complete msmt time in seconds")
+	module := flag.String("module", "tcp-throughput", "tcp-throughput or udp-throughput")
+	streams = flag.Int("streams", MSMT_STREAMS, "setting number of streams")
+	serverAddr = flag.String("addr", "127.0.0.1", "localhost or userdefined addr")
+	bufLength = flag.Int("buffer-length", DEF_BUFFER_SIZE, "msmt application buffer in bytes")
+	msmtUpdateTime = flag.Uint("update-interval", 2, "msmt update interval in seconds")
+	msmtTime = flag.Uint("msmt-time", 10, "complete msmt time in seconds")
 
 	flag.Parse()
 
@@ -50,26 +50,26 @@ func main() {
 	fmt.Println("Control addr:", *ctrlAddr)
 	fmt.Println("Control Port:", *port)
 	fmt.Println("Call-Size: ", *callSize)
-	fmt.Println("Msmt-type: ", *msmtType)
-	fmt.Println("Msmt-Streams: ", *msmtStreams)
-	fmt.Println("Msmt-Addr: ", *msmtListenAddr)
-	fmt.Println("Msmt-CallSize: ", *msmtCallSize)
+	fmt.Println("module: ", *module)
+	fmt.Println("Msmt-Streams: ", *streams)
+	fmt.Println("Msmt-Addr: ", *serverAddr)
+	fmt.Println("Msmt-CallSize: ", *bufLength)
 	fmt.Println("Update-Interval: ", *msmtUpdateTime)
-	fmt.Println("Msmt-time: ", *msmtStopTime)
+	fmt.Println("Msmt-time: ", *msmtTime)
 	*/
 
 	if *ctrlProto == "tcp" {
-		runTcpCtrlClient(*ctrlAddr, *port, *callSize, *msmtType)
+		runTcpCtrlClient(*ctrlAddr, *port, *callSize, *module)
 	} else if *ctrlProto == "udp" {
-		runUdpCtrlClient(*ctrlAddr, *port, *callSize, *msmtType)
+		runUdpCtrlClient(*ctrlAddr, *port, *callSize, *module)
 	} else if *ctrlProto == "udp_mcast" {
-		runUdpMcastCtrlClient(*ctrlAddr, *port, *callSize, *msmtType)
+		runUdpMcastCtrlClient(*ctrlAddr, *port, *callSize, *module)
 	} else {
 		panic("tcp, udp or udp_mcast as ctrl-proto")
 	}
 }
 
-func runTcpCtrlClient(addr string, port int, callSize int, msmtType string) {
+func runTcpCtrlClient(addr string, port int, callSize int, module string) {
 	tcpObj := clientProtos.NewTcpObj("TcpDiscoveryConn", addr, port, callSize)
 	seqNo = shared.ConstructSeqNo()
 
@@ -100,9 +100,9 @@ func runTcpCtrlClient(addr string, port int, callSize int, msmtType string) {
 		os.Exit(1)
 	}
 
-	if msmtType == "tcp-throughput" {
+	if module == "tcp-throughput" {
 		sendTcpMsmtStartRequest(addr, port, callSize)
-	} else if msmtType == "udp-throughput" {
+	} else if module == "udp-throughput" {
 		sendUdpMsmtStartRequest(addr, port, callSize)
 	} else {
 		panic("Measurement type not supported")
@@ -169,7 +169,7 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 	wir sagen 10s und während dessen empfangen wir nichts
 	dann bauen wir schon verbindung ab => client ist immer noch im retransmit
 	*/
-	tMsmtStopReq := time.NewTimer(time.Duration(*msmtStopTime) * time.Second)
+	tMsmtStopReq := time.NewTimer(time.Duration(*msmtTime) * time.Second)
 
 	for {
 		select {
@@ -311,7 +311,7 @@ func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 	wir sagen 10s und während dessen empfangen wir nichts
 	dann bauen wir schon verbindung ab => client ist immer noch im retransmit
 	*/
-	tMsmtStopReq := time.NewTimer(time.Duration(*msmtStopTime) * time.Second)
+	tMsmtStopReq := time.NewTimer(time.Duration(*msmtTime) * time.Second)
 
 	for {
 		select {
@@ -393,24 +393,24 @@ func sendUdpMsmtStopRequest(addr string, port int, callSize int) {
 	tcpObj.StopMeasurement(reqJson)
 }
 
-func constructMeasurementObj(name string, msmtType string) *shared.MeasurementObj {
+func constructMeasurementObj(name string, module string) *shared.MeasurementObj {
 	MsmtObj := new(shared.MeasurementObj)
 	MsmtObj.Name = name
-	MsmtObj.Type = msmtType
+	MsmtObj.Type = module
 
 	// we dont need a configuration anymore
 //	confObj := shared.ConstructConfiguration(CONFIG_FILE)
 	confObj := new(shared.ConfigurationObj)
-	confObj.Worker = strconv.Itoa(*msmtStreams)
-	confObj.Listen_addr = *msmtListenAddr
-	confObj.Call_size = strconv.Itoa(*msmtCallSize)
+	confObj.Worker = strconv.Itoa(*streams)
+	confObj.Listen_addr = *serverAddr
+	confObj.Call_size = strconv.Itoa(*bufLength)
 
 
 	MsmtObj.Configuration = *confObj
 	return MsmtObj
 }
 
-func runUdpCtrlClient(addr string, port int, callSize int, msmtType string) {
+func runUdpCtrlClient(addr string, port int, callSize int, module string) {
 	udpObj := clientProtos.NewUdpObj("UdpConn1", addr, port, callSize)
 	seqNo = shared.ConstructSeqNo()
 
@@ -442,16 +442,16 @@ func runUdpCtrlClient(addr string, port int, callSize int, msmtType string) {
 		os.Exit(1)
 	}
 
-	if msmtType == "tcp-throughput" {
+	if module == "tcp-throughput" {
 		sendTcpMsmtStartRequest(addr, port, callSize)
-	} else if msmtType == "udp-throughput" {
+	} else if module == "udp-throughput" {
 		sendUdpMsmtStartRequest(addr, port, callSize)
 	} else {
 		panic("Measurement type not supported")
 	}
 }
 
-func runUdpMcastCtrlClient(addr string, port int, callSize int, msmtType string) {
+func runUdpMcastCtrlClient(addr string, port int, callSize int, module string) {
 	udpMcObj := clientProtos.NewUdpMcObj("UdpMcConn1", addr, port, callSize)
 	seqNo = shared.ConstructSeqNo()
 
@@ -479,9 +479,9 @@ func runUdpMcastCtrlClient(addr string, port int, callSize int, msmtType string)
 		os.Exit(1)
 	}
 
-	if msmtType == "tcp-throughput" {
+	if module == "tcp-throughput" {
 		sendTcpMsmtStartRequest(addr, port, callSize)
-	} else if msmtType == "udp-throughput" {
+	} else if module == "udp-throughput" {
 		sendUdpMsmtStartRequest(addr, port, callSize)
 	} else {
 		panic("Measurement type not supported")
