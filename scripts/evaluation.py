@@ -23,7 +23,7 @@ pp = pprint.PrettyPrinter(indent=4)
 
 # read from pipe (stdin) until end of program
 lines_json = sys.stdin.read()
-# debug print("json lines", lines_json)
+print("json lines", lines_json)
 
 # we got one lines of json, convert everyline
 # into our "db"

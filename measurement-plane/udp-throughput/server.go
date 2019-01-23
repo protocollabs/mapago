@@ -153,7 +153,7 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 			cltAddrExists = true
 		}
 
-		msmtInfo.Bytes = uint64(bytes)
+		msmtInfo.Bytes += uint64(bytes)
 
 		if fTsExists == false {
 			fTs := shared.ConvCurrDateToStr()
