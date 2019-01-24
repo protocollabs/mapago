@@ -251,9 +251,9 @@ func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
 
-	tcpObj.StopMeasurement(reqJson)
+	msmtStopRep := tcpObj.StopMeasurement(reqJson)
+	prepareOutput(msmtStopRep)
 }
-
 
 // this starts the UDP throughput measurement
 // underlying control channel is TCP based
@@ -390,7 +390,8 @@ func sendUdpMsmtStopRequest(addr string, port int, callSize int) {
 	}
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
-	tcpObj.StopMeasurement(reqJson)
+	msmtStopRep := tcpObj.StopMeasurement(reqJson)
+	prepareOutput(msmtStopRep)
 }
 
 func constructMeasurementObj(name string, module string) *shared.MeasurementObj {

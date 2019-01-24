@@ -57,6 +57,11 @@ type ChMsmtResult struct {
 	Time  float64
 }
 
+type CombinedData struct {
+	MgmtData map[string]string
+	MsmtData []DataResultObj
+}
+
 type MsmtStorageEntry struct {
 	MsmtCh chan ChMgmt2Msmt
 	// this could be: tcpMsmtObj, udpMsmtObj, quicMsmtObj
@@ -124,6 +129,7 @@ type DataResultObj struct {
 	Received_bytes  string `json:",omitempty"`
 }
 
+// this is the per msmt module allocated "storage" for the gathered msmt data
 type MsmtInfoObj struct {
 	Bytes   uint64
 	FirstTs string
