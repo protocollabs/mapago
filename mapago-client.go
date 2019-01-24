@@ -104,10 +104,18 @@ func runTcpCtrlClient(addr string, port int, callSize int, module string) {
 		sendTcpMsmtStartRequest(addr, port, callSize)
 	} else if module == "udp-throughput" {
 		sendUdpMsmtStartRequest(addr, port, callSize)
+	// TODO: ADD QUIC
 	} else {
 		panic("Measurement type not supported")
 	}
 }
+
+// TODO1: sendQuicMsmtStartRequest
+// TODO2: manageQUICMsmt
+// TODO3: sendQuicMsmtInfoRequest
+// TODO4: sendQuicMsmtStopRequest
+
+
 
 // this starts the TCP throughput measurement
 // underlying control channel is TCP based
@@ -447,6 +455,7 @@ func runUdpCtrlClient(addr string, port int, callSize int, module string) {
 		sendTcpMsmtStartRequest(addr, port, callSize)
 	} else if module == "udp-throughput" {
 		sendUdpMsmtStartRequest(addr, port, callSize)
+	// TODO6: Add QUIC	
 	} else {
 		panic("Measurement type not supported")
 	}
@@ -484,6 +493,7 @@ func runUdpMcastCtrlClient(addr string, port int, callSize int, module string) {
 		sendTcpMsmtStartRequest(addr, port, callSize)
 	} else if module == "udp-throughput" {
 		sendUdpMsmtStartRequest(addr, port, callSize)
+	// TODO: Add Quic	
 	} else {
 		panic("Measurement type not supported")
 	}

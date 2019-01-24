@@ -259,5 +259,6 @@ func supportedModules() map[string]string {
 	supportedMods := make(map[string]string)
 	supportedMods["udp-goodput"] = "no-support"
 	supportedMods["tcp-goodput"] = "no-support"
+	// TODO: Bring that up to data
 	return supportedMods
 }

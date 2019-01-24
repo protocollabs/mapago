@@ -7,8 +7,6 @@ import "io"
 import "strconv"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
-var UPDATE_INTERVAL = 5
-
 type TcpMsmtObj struct {
 	numStreams      int
 	usedPorts       []int

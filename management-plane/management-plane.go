@@ -57,6 +57,9 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 		msmtStorage[msmtId] = msmtEntry
 
 		fmt.Println("\nmsmtStorage content: ", msmtStorage)
+
+		// TODO1: Add QUIC support
+
 	}
 }
 
@@ -85,7 +88,7 @@ func HandleMsmtStopReq(msmtId string) {
 		msmstObj.CloseConn()
 	case *udpThroughput.UdpThroughputMsmt:
 		msmstObj.CloseConn()
-	// TODO	case *quicThroughput.QuicMsmtObj:
+	// TODO2:	case *quicThroughput.QuicMsmtObj:
 	default:
 		fmt.Printf("Type assertion failed: Unknown msmt type")
 		os.Exit(1)
@@ -108,7 +111,7 @@ func HandleMsmtInfoReq(msmtId string) {
 		msmstObj.GetMsmtInfo()
 	case *udpThroughput.UdpThroughputMsmt:
 		msmstObj.GetMsmtInfo()
-	// TODO	case *quicThroughput.QuicMsmtObj:
+	// TODO3: 	case *quicThroughput.QuicMsmtObj:
 	default:
 		fmt.Printf("Type assertion failed: Unknown msmt type")
 		os.Exit(1)
