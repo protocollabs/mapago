@@ -12,6 +12,7 @@ Execute the following installation steps to use Mapago:
 ```
 export GOPATH=$HOME/go
 export GOBIN=$HOME/go/bin
+go get github.com/google/uuid
 go get github.com/protocollabs/mapago
 cd $GOPATH/github.com/protocollabs/mapago
 make install

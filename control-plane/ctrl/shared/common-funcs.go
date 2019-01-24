@@ -4,7 +4,6 @@ import "fmt"
 import "encoding/json"
 import "encoding/binary"
 import "os"
-import "os/exec"
 import "strings"
 import "bytes"
 import "time"
@@ -12,6 +11,7 @@ import "runtime"
 import "path/filepath"
 import "strconv"
 import "math/rand"
+import "github.com/google/uuid"
 
 const DATE_FMT = "2006-01-02T15:04:05.000000"
 
@@ -100,15 +100,12 @@ func ConstructId() string {
 		os.Exit(1)
 	}
 
-	uuid, err := exec.Command("uuidgen").Output()
-	if err != nil {
-		fmt.Printf("Cannot construct uuid %s\n", err)
-		os.Exit(1)
-	}
+	uuid := uuid.New().String()
 
 	id := []string{}
 	id = append(id, hostName)
-	id = append(id, strings.TrimSuffix(string(uuid[:]), "\n"))
+	id = append(id, uuid)
+
 	return strings.Join(id, "=")
 }
 
