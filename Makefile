@@ -6,6 +6,7 @@ GOBIN   :=$(GOPATH)/bin
 
 MKDIR_P = @mkdir -p
 
+# notice that
 LDFLAGS  = "-X $(PACKAGE)/core.BuildVersion=$(VERSION) -X $(PACKAGE)/core.BuildDate=$(DATE)"
 
 SRC = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
@@ -16,11 +17,8 @@ SRC = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	go build mapago-server.go
-	go build mapago-client.go
-	# FIME, the previous two lines fixed the build problem.
-	# but the next with ldflags is still missing, must be added
-	#go build -ldflags $(LDFLAGS) -o $(TARGET) cmd/mapago/mapago.go
+	go build -ldflags $(LDFLAGS) mapago-server.go
+	go build -ldflags $(LDFLAGS) mapago-client.go
 
 XYZs = windows:amd64 linux:arm64
 
