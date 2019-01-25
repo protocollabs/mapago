@@ -11,6 +11,7 @@ import "strings"
 import "github.com/protocollabs/mapago/control-plane/ctrl/client-protocols"
 import "github.com/protocollabs/mapago/measurement-plane/tcp-throughput"
 import "github.com/protocollabs/mapago/measurement-plane/udp-throughput"
+import "github.com/protocollabs/mapago/measurement-plane/quic-throughput"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 var CTRL_PORT = 64321
@@ -104,17 +105,158 @@ func runTcpCtrlClient(addr string, port int, callSize int, module string) {
 		sendTcpMsmtStartRequest(addr, port, callSize)
 	} else if module == "udp-throughput" {
 		sendUdpMsmtStartRequest(addr, port, callSize)
-	// TODO: ADD QUIC
+	} else if module == "quic-throughput" {
+		sendQuicMsmtStartRequest(addr, port, callSize)
 	} else {
 		panic("Measurement type not supported")
 	}
 }
 
-// TODO1: sendQuicMsmtStartRequest
-// TODO2: manageQUICMsmt
-// TODO3: sendQuicMsmtInfoRequest
-// TODO4: sendQuicMsmtStopRequest
+func sendQuicMsmtStartRequest(addr string, port int, callSize int) {
+	fmt.Println("\nSending a msmt start request!!!")
 
+	var wg sync.WaitGroup
+	closeConnCh := make(chan string)
+	tcpObj := clientProtos.NewTcpObj("QuicMsmtStartReqConn", addr, port, callSize)
+
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
+		
+	if val, ok := idStorage["host-uuid"]; ok {
+		reqDataObj.Id = val
+	} else {
+		fmt.Println("\nFound not the id")
+	}
+	
+	seqNo++
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
+	reqDataObj.Secret = "fancySecret"
+	reqDataObj.Measurement_delay = "666"
+	reqDataObj.Measurement_time_max = "666"
+
+	// STOPPED
+	msmtObj := constructMeasurementObj("quic-throughput", "module")
+	reqDataObj.Measurement = *msmtObj
+	
+	numWorker, err := strconv.Atoi(reqDataObj.Measurement.Configuration.Worker)
+	if err != nil {
+		fmt.Printf("Could not parse Workers: %s\n", err)
+		os.Exit(1)
+	}
+	
+	reqJson := shared.ConvDataStructToJson(reqDataObj)
+	// debug fmt.Printf("\nmsmt start request JSON is: % s", reqJson)
+
+	repDataObj := tcpObj.StartMeasurement(reqJson)
+
+	if msmtStorageInited == false {
+		msmtIdStorage = make(map[string]string)
+		msmtStorageInited = true
+	}
+
+	msmtIdStorage["quic-throughput1"] = repDataObj.Measurement_id
+	quicThroughput.NewQuicMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh)
+	manageQuicMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
+}
+
+func manageQuicMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
+	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
+	/* TODO: nicht zeitgetriggert sonder daten getriggert
+	wenn letzte daten erhalten => close conns
+	würde Probleme geben bei starker packet verlustrate
+	wir sagen 10s und während dessen empfangen wir nichts
+	dann bauen wir schon verbindung ab => client ist immer noch im retransmit
+	*/
+	tMsmtStopReq := time.NewTimer(time.Duration(*msmtTime) * time.Second)
+
+	for {
+		select {
+		case <-tMsmtInfoReq.C:
+			sendQuicMsmtInfoRequest(addr, port, callSize)
+			tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
+
+		case <-tMsmtStopReq.C:
+			tMsmtInfoReq.Stop()
+
+			for i := 0; i < workers; i++ {
+				closeConnCh<- "close"
+			}
+
+			wg.Wait()
+			
+			// all connections are now terminated: server should shut down aswell
+			sendQuicMsmtStopRequest(addr, port, callSize)
+			return
+		}
+	}
+}
+
+func sendQuicMsmtInfoRequest(addr string, port int, callSize int) {
+	tcpObj := clientProtos.NewTcpObj("QuicMsmtInfoReqConn", addr, port, callSize)
+
+	fmt.Println("\nSending a msmt info request!!!")
+
+
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.MEASUREMENT_INFO_REQUEST
+	
+	if val, ok := idStorage["host-uuid"]; ok {
+		reqDataObj.Id = val
+	} else {
+		fmt.Println("\nFound not the id")
+	}
+	
+	seqNo++
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
+	reqDataObj.Secret = "fancySecret"
+
+	if val, ok := msmtIdStorage["quic-throughput1"]; ok {
+		reqDataObj.Measurement_id = val
+	} else {
+		fmt.Println("\nFound not the measurement id for quic throughput")
+	}
+
+	reqJson := shared.ConvDataStructToJson(reqDataObj)
+	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
+
+	msmtInfoRep := tcpObj.GetMeasurementInfo(reqJson)
+	prepareOutput(msmtInfoRep)
+}
+
+
+// this stops the QUIC throughput measurement
+// underlying control channel is TCP based
+func sendQuicMsmtStopRequest(addr string, port int, callSize int) {
+	tcpObj := clientProtos.NewTcpObj("QuicMsmtStopReqConn", addr, port, callSize)
+
+	fmt.Println("\nSending a msmt stop request!!!")
+
+
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.MEASUREMENT_STOP_REQUEST
+	
+	if val, ok := idStorage["host-uuid"]; ok {
+		reqDataObj.Id = val
+	} else {
+		fmt.Println("\nFound not the id")
+	}
+	
+	seqNo++
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
+	reqDataObj.Secret = "fancySecret"
+
+	if val, ok := msmtIdStorage["quic-throughput1"]; ok {
+		reqDataObj.Measurement_id = val
+	} else {
+		fmt.Println("\nFound not the measurement id for quic throughput")
+	}
+
+	reqJson := shared.ConvDataStructToJson(reqDataObj)
+	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
+
+	msmtStopRep := tcpObj.StopMeasurement(reqJson)
+	prepareOutput(msmtStopRep)
+}
 
 
 // this starts the TCP throughput measurement
@@ -455,7 +597,8 @@ func runUdpCtrlClient(addr string, port int, callSize int, module string) {
 		sendTcpMsmtStartRequest(addr, port, callSize)
 	} else if module == "udp-throughput" {
 		sendUdpMsmtStartRequest(addr, port, callSize)
-	// TODO6: Add QUIC	
+	} else if module == "quic-throughput" {
+		sendQuicMsmtStartRequest(addr, port, callSize)
 	} else {
 		panic("Measurement type not supported")
 	}
@@ -493,7 +636,8 @@ func runUdpMcastCtrlClient(addr string, port int, callSize int, module string) {
 		sendTcpMsmtStartRequest(addr, port, callSize)
 	} else if module == "udp-throughput" {
 		sendUdpMsmtStartRequest(addr, port, callSize)
-	// TODO: Add Quic	
+	} else if module == "quic-throughput" {
+		sendQuicMsmtStartRequest(addr, port, callSize)
 	} else {
 		panic("Measurement type not supported")
 	}
