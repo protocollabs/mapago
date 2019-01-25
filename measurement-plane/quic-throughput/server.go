@@ -111,6 +111,7 @@ func NewQuicThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- share
 
 func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int, msmtInfoPtr *shared.MsmtInfoObj, connPtr *shared.QuicConn) {
 	var listener quic.Listener
+	var err error
 	fTsExists := false
 	stream := "stream" + strconv.Itoa(streamIndex)
 	fmt.Printf("\n%s is here", stream)
@@ -121,8 +122,8 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 		listen := quicMsmt.listenAddr + ":" + strconv.Itoa(port)
 
 		// TODO CHECK IF THAT WORKS AS WITH UDP AND TCP
-		listener, error := quic.ListenAddr(listen, tlsConf, nil)
-		if error == nil {
+		listener, err = quic.ListenAddr(listen, tlsConf, nil)
+		if err == nil {
 			// debug fmt.Printf("\nCan listen on addr: %s\n", listen)
 			quicMsmt.usedPorts = append(quicMsmt.usedPorts, port)
 			connPtr.SrvSock = listener
@@ -139,7 +140,6 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 		os.Exit(1)
 	}
 
-	// TODO CHECK IF THAT WORKS AS WITH UDP AND TCP
 	fmt.Printf("Connection from %s\n", sess.RemoteAddr())
 	connPtr.AcceptSock = sess
 
@@ -148,6 +148,8 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 		panic("acceptStream")
 	}
 
+	fmt.Println("\n\nwe arrived here")
+
 	message := make([]byte, quicMsmt.callSize, quicMsmt.callSize)
 
 	for {
@@ -155,7 +157,11 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 
 		// TODO CHECK IF ADVANCED ERROR HANDLING NECESSARY
 		if err != nil {
-			panic("readStream")
+			if err == io.EOF {
+				break
+			}
+
+			os.Exit(1)
 		}
 
 		msmtInfoPtr.Bytes += uint64(bytes)
@@ -215,6 +221,8 @@ func (quicMsmt *QuicThroughputMsmt) CloseConn() {
 
 func (quicMsmt *QuicThroughputMsmt) GetMsmtInfo() {
 	var msmtData []shared.DataResultObj
+
+	fmt.Println("\nPreparing quic msmt info req")
 
 	msmtReply := new(shared.ChMsmt2Ctrl)
 	msmtReply.Status = "ok"
