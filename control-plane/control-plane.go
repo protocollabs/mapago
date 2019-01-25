@@ -257,8 +257,9 @@ func constructMsmtInfoReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2Ct
 func supportedModules() map[string]string {
 	fmt.Println("\nConstructing supported modules")
 	supportedMods := make(map[string]string)
-	supportedMods["udp-goodput"] = "no-support"
-	supportedMods["tcp-goodput"] = "no-support"
+	supportedMods["udp-goodput"] = "supported"
+	supportedMods["tcp-goodput"] = "supported"
+	supportedMods["quic-goodput"] = "not-supported"
 	// TODO: Bring that up to data
 	return supportedMods
 }

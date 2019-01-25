@@ -6,8 +6,6 @@ import "net"
 import "strconv"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
-var UPDATE_INTERVAL = 5
-
 type UdpThroughputMsmt struct {
 	numStreams      int
 	usedPorts       []int
