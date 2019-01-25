@@ -1,6 +1,7 @@
 package shared
 
 import "net"
+import quic "github.com/lucas-clemente/quic-go"
 
 // channel result
 
@@ -143,4 +144,10 @@ type TcpConnObj struct {
 
 type UdpConn struct {
 	SrvSock *net.UDPConn
+}
+
+type QuicConn struct {
+	AcceptSock quic.Session
+	// holds the underlying ListenUDP sock
+	SrvSock quic.Listener
 }
