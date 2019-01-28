@@ -12,6 +12,7 @@ import "encoding/pem"
 import "io"
 import quic "github.com/lucas-clemente/quic-go"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
+import "strings"
 
 type QuicThroughputMsmt struct {
 	numStreams      int
@@ -121,7 +122,6 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 	for {
 		listen := quicMsmt.listenAddr + ":" + strconv.Itoa(port)
 
-		// TODO CHECK IF THAT WORKS AS WITH UDP AND TCP
 		listener, err = quic.ListenAddr(listen, tlsConf, nil)
 		if err == nil {
 			// debug fmt.Printf("\nCan listen on addr: %s\n", listen)
@@ -134,9 +134,9 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 		port++
 	}
 
-	sess, error := listener.Accept()
-	if error != nil {
-		fmt.Printf("Cannot accept: %s\n", error)
+	sess, err := listener.Accept()
+	if err != nil {
+		fmt.Printf("Cannot accept: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -148,16 +148,19 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 		panic("acceptStream")
 	}
 
-	fmt.Println("\n\nwe arrived here")
-
 	message := make([]byte, quicMsmt.callSize, quicMsmt.callSize)
 
 	for {
 		bytes, err := io.ReadFull(quicStream, message)
 
-		// TODO CHECK IF ADVANCED ERROR HANDLING NECESSARY
 		if err != nil {
 			if err == io.EOF {
+				break
+			}
+
+			// check for qerr.QuicError
+			errStr := strings.TrimRight(err.Error(), ": ")
+			if errStr == "PeerGoingAway" {
 				break
 			}
 

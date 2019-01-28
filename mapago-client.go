@@ -113,8 +113,6 @@ func runTcpCtrlClient(addr string, port int, callSize int, module string) {
 }
 
 func sendQuicMsmtStartRequest(addr string, port int, callSize int) {
-	fmt.Println("\nSending a msmt start request!!!")
-
 	var wg sync.WaitGroup
 	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("QuicMsmtStartReqConn", addr, port, callSize)
@@ -194,9 +192,6 @@ func manageQuicMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clo
 func sendQuicMsmtInfoRequest(addr string, port int, callSize int) {
 	tcpObj := clientProtos.NewTcpObj("QuicMsmtInfoReqConn", addr, port, callSize)
 
-	fmt.Println("\nSending a msmt info request!!!")
-
-
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_INFO_REQUEST
 	
@@ -228,9 +223,6 @@ func sendQuicMsmtInfoRequest(addr string, port int, callSize int) {
 // underlying control channel is TCP based
 func sendQuicMsmtStopRequest(addr string, port int, callSize int) {
 	tcpObj := clientProtos.NewTcpObj("QuicMsmtStopReqConn", addr, port, callSize)
-
-	fmt.Println("\nSending a msmt stop request!!!")
-
 
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_STOP_REQUEST

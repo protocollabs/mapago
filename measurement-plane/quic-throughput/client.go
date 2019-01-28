@@ -24,10 +24,8 @@ func NewQuicMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.Data
 func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string) {
 	buf := make([]byte, DEF_BUFFER_SIZE, DEF_BUFFER_SIZE)
 
-	// create tls config
 	tlsConf := tls.Config{InsecureSkipVerify: true}
 
-	// replace that with quic.DialAddr
 	session, err := quic.DialAddr(addr, &tlsConf, nil)
 	if err != nil {
 		panic("dial")
@@ -42,7 +40,6 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 		select {
 		case cmd := <-closeConnCh:
 			if cmd == "close" {
-				// replace that with session.Close()
 				session.Close()
 				wg.Done()
 				return
