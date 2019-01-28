@@ -129,6 +129,7 @@ func HandleMsmtInfoReq(msmtId string) {
 	case *udpThroughput.UdpThroughputMsmt:
 		msmstObj.GetMsmtInfo()
 	case *quicThroughput.QuicThroughputMsmt:
+		msmstObj.GetMsmtInfo()
 	default:
 		fmt.Printf("Type assertion failed: Unknown msmt type")
 		os.Exit(1)
