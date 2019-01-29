@@ -219,15 +219,15 @@ func constructMsmtStopReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2Ct
 	repDataObj.Id = ID
 	repDataObj.Seq_rp = reqDataObj.Seq
 
-	msmtData, ok := msmtRep.Data.(map[string]string)
+	combined, ok := msmtRep.Data.(shared.CombinedData)
 	if ok == false {
-		fmt.Printf("Type assertion failed: Looking for map %t", ok)
+		fmt.Printf("Type assertion failed: Looking for combined data %t", ok)
 		os.Exit(1)
 	}
 
-	repDataObj.Measurement_id = msmtData["msmtId"]
-	repDataObj.Message = msmtData["msg"]
-	// TODO: Include the final measurement result
+	repDataObj.Measurement_id = combined.MgmtData["msmtId"]
+	repDataObj.Message = combined.MgmtData["msg"]
+	repDataObj.Data.DataElements = combined.MsmtData
 
 	return repDataObj
 }
@@ -248,7 +248,7 @@ func constructMsmtInfoReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2Ct
 	}
 
 	repDataObj.Measurement_id = reqDataObj.Measurement_id
-	repDataObj.Data.DataElement = msmtData
+	repDataObj.Data.DataElements = msmtData
 
 	// TODO: Add the timestamps
 	return repDataObj
@@ -257,7 +257,9 @@ func constructMsmtInfoReply(reqDataObj *shared.DataObj, msmtRep shared.ChMsmt2Ct
 func supportedModules() map[string]string {
 	fmt.Println("\nConstructing supported modules")
 	supportedMods := make(map[string]string)
-	supportedMods["udp-goodput"] = "no-support"
-	supportedMods["tcp-goodput"] = "no-support"
+	supportedMods["udp-goodput"] = "supported"
+	supportedMods["tcp-goodput"] = "supported"
+	supportedMods["quic-goodput"] = "not-supported"
+	// TODO: Bring that up to data
 	return supportedMods
 }

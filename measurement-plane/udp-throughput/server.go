@@ -6,8 +6,6 @@ import "net"
 import "strconv"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
-var UPDATE_INTERVAL = 5
-
 type UdpThroughputMsmt struct {
 	numStreams      int
 	usedPorts       []int
@@ -153,7 +151,7 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 			cltAddrExists = true
 		}
 
-		msmtInfo.Bytes = uint64(bytes)
+		msmtInfo.Bytes += uint64(bytes)
 
 		if fTsExists == false {
 			fTs := shared.ConvCurrDateToStr()
@@ -167,7 +165,9 @@ func (udpMsmt *UdpThroughputMsmt) udpServerWorker(closeCh <-chan interface{}, go
 }
 
 func (udpMsmt *UdpThroughputMsmt) CloseConn() {
-	var msmtData map[string]string
+	var mgmtData map[string]string
+	var msmtData []shared.DataResultObj
+	var combinedData shared.CombinedData
 
 	for streamId, conn := range udpMsmt.connStorage {
 		fmt.Println("\nUDP closing: ", streamId)
@@ -177,10 +177,27 @@ func (udpMsmt *UdpThroughputMsmt) CloseConn() {
 	msmtReply := new(shared.ChMsmt2Ctrl)
 	msmtReply.Status = "ok"
 
-	msmtData = make(map[string]string)
-	msmtData["msmtId"] = udpMsmt.msmtId
-	msmtData["msg"] = "all modules closed"
-	msmtReply.Data = msmtData
+	mgmtData = make(map[string]string)
+	mgmtData["msmtId"] = udpMsmt.msmtId
+	mgmtData["msg"] = "all modules closed"
+	combinedData.MgmtData = mgmtData
+
+	for c := 1; c <= udpMsmt.numStreams; c++ {
+		stream := "stream" + strconv.Itoa(c)
+
+		msmtStruct := udpMsmt.msmtInfoStorage[stream]
+
+		dataElement := new(shared.DataResultObj)
+		dataElement.Received_bytes = strconv.Itoa(int(msmtStruct.Bytes))
+		dataElement.Timestamp_first = msmtStruct.FirstTs
+		dataElement.Timestamp_last = msmtStruct.LastTs
+
+		msmtData = append(msmtData, *dataElement)
+		fmt.Println("\nmsmtData is: ", msmtData)
+	}
+
+	combinedData.MsmtData = msmtData
+	msmtReply.Data = combinedData
 
 	go func() {
 		udpMsmt.msmt2CtrlCh <- *msmtReply

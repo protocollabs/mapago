@@ -8,6 +8,7 @@ import "strconv"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 import "github.com/protocollabs/mapago/measurement-plane/tcp-throughput"
 import "github.com/protocollabs/mapago/measurement-plane/udp-throughput"
+import "github.com/protocollabs/mapago/measurement-plane/quic-throughput"
 
 var msmtStorage map[string]*shared.MsmtStorageEntry
 var mapInited = false
@@ -57,6 +58,24 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 		msmtStorage[msmtId] = msmtEntry
 
 		fmt.Println("\nmsmtStorage content: ", msmtStorage)
+
+	case "quic-throughput":
+		msmtId := constructMsmtId(cltAddr)
+		msmtCh := make(chan shared.ChMgmt2Msmt)
+
+		if mapInited == false {
+			msmtStorage = make(map[string]*shared.MsmtStorageEntry)
+			mapInited = true
+		}
+
+		quicMsmt := quicThroughput.NewQuicThroughputMsmt(msmtCh, ctrlCh, msmtStartReq, msmtId, startPort)
+
+		msmtEntry := new(shared.MsmtStorageEntry)
+		msmtEntry.MsmtCh = msmtCh
+		msmtEntry.MsmtObj = quicMsmt
+		msmtStorage[msmtId] = msmtEntry
+
+		fmt.Println("\nmsmtStorage content: ", msmtStorage)
 	}
 }
 
@@ -85,7 +104,8 @@ func HandleMsmtStopReq(msmtId string) {
 		msmstObj.CloseConn()
 	case *udpThroughput.UdpThroughputMsmt:
 		msmstObj.CloseConn()
-	// TODO	case *quicThroughput.QuicMsmtObj:
+	case *quicThroughput.QuicThroughputMsmt:
+		msmstObj.CloseConn()
 	default:
 		fmt.Printf("Type assertion failed: Unknown msmt type")
 		os.Exit(1)
@@ -108,7 +128,8 @@ func HandleMsmtInfoReq(msmtId string) {
 		msmstObj.GetMsmtInfo()
 	case *udpThroughput.UdpThroughputMsmt:
 		msmstObj.GetMsmtInfo()
-	// TODO	case *quicThroughput.QuicMsmtObj:
+	case *quicThroughput.QuicThroughputMsmt:
+		msmstObj.GetMsmtInfo()
 	default:
 		fmt.Printf("Type assertion failed: Unknown msmt type")
 		os.Exit(1)

@@ -1,6 +1,7 @@
 package shared
 
 import "net"
+import quic "github.com/lucas-clemente/quic-go"
 
 // channel result
 
@@ -55,6 +56,11 @@ whats actually received: "i received 666 bytes"
 type ChMsmtResult struct {
 	Bytes uint64
 	Time  float64
+}
+
+type CombinedData struct {
+	MgmtData map[string]string
+	MsmtData []DataResultObj
 }
 
 type MsmtStorageEntry struct {
@@ -115,7 +121,7 @@ type ConfigurationObj struct {
 }
 
 type DataCollectionObj struct {
-	DataElement []DataResultObj
+	DataElements []DataResultObj
 }
 
 type DataResultObj struct {
@@ -124,6 +130,7 @@ type DataResultObj struct {
 	Received_bytes  string `json:",omitempty"`
 }
 
+// this is the per msmt module allocated "storage" for the gathered msmt data
 type MsmtInfoObj struct {
 	Bytes   uint64
 	FirstTs string
@@ -137,4 +144,10 @@ type TcpConnObj struct {
 
 type UdpConn struct {
 	SrvSock *net.UDPConn
+}
+
+type QuicConn struct {
+	AcceptSock quic.Session
+	// holds the underlying ListenUDP sock
+	SrvSock quic.Listener
 }

@@ -3,10 +3,9 @@ package tcpThroughput
 import "fmt"
 import "os"
 import "net"
+import "io"
 import "strconv"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
-
-var UPDATE_INTERVAL = 5
 
 type TcpMsmtObj struct {
 	numStreams      int
@@ -144,18 +143,21 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 	message := make([]byte, tcpMsmt.callSize, tcpMsmt.callSize)
 
 	for {
-		bytes, error := conn.Read(message)
-		if error != nil {
-			if error.(*net.OpError).Err.Error() == "use of closed network connection" {
-				// debug fmt.Println("\nTCP Closed network detected! I am ignoring this")
+		bytes, err := conn.Read(message)
+		if err != nil {
+			if err == io.EOF {
 				break
 			}
 
-			fmt.Printf("TCP server worker! Cannot read: %s\n", error)
+			if err.(*net.OpError).Err.Error() == "use of closed network connection" {
+				break
+			}
+
+			// something different serious...
 			os.Exit(1)
 		}
 
-		msmtInfoPtr.Bytes = uint64(bytes)
+		msmtInfoPtr.Bytes += uint64(bytes)
 
 		if fTsExists == false {
 			fTs := shared.ConvCurrDateToStr()
@@ -169,7 +171,9 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 }
 
 func (tcpMsmt *TcpMsmtObj) CloseConn() {
-	var msmtData map[string]string
+	var mgmtData map[string]string
+	var msmtData []shared.DataResultObj
+	var combinedData shared.CombinedData
 
 	for c, tcpConns := range tcpMsmt.connStorage {
 		fmt.Println("\nClosing stream: ", c)
@@ -180,12 +184,29 @@ func (tcpMsmt *TcpMsmtObj) CloseConn() {
 	msmtReply := new(shared.ChMsmt2Ctrl)
 	msmtReply.Status = "ok"
 
-	msmtData = make(map[string]string)
-	msmtData["msmtId"] = tcpMsmt.msmtId
-	msmtData["msg"] = "all modules closed"
-	msmtReply.Data = msmtData
+	mgmtData = make(map[string]string)
+	mgmtData["msmtId"] = tcpMsmt.msmtId
+	mgmtData["msg"] = "all modules closed"
 
-	// TODO: we have to attach the final Measurement Data
+	combinedData.MgmtData = mgmtData
+
+	for c := 1; c <= tcpMsmt.numStreams; c++ {
+		stream := "stream" + strconv.Itoa(c)
+
+		msmtStruct := tcpMsmt.msmtInfoStorage[stream]
+
+		dataElement := new(shared.DataResultObj)
+		dataElement.Received_bytes = strconv.Itoa(int(msmtStruct.Bytes))
+		dataElement.Timestamp_first = msmtStruct.FirstTs
+		dataElement.Timestamp_last = msmtStruct.LastTs
+
+		msmtData = append(msmtData, *dataElement)
+		fmt.Println("\nmsmtData is: ", msmtData)
+	}
+
+	combinedData.MsmtData = msmtData
+	msmtReply.Data = combinedData
+
 	go func() {
 		tcpMsmt.msmt2CtrlCh <- *msmtReply
 	}()
