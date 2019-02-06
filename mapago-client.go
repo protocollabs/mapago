@@ -296,7 +296,7 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	msmtIdStorage["tcp-throughput1"] = repDataObj.Measurement_id
 
 
-	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh)
+	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength)
 
 	
 	manageTcpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
