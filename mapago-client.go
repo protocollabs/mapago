@@ -153,7 +153,7 @@ func sendQuicMsmtStartRequest(addr string, port int, callSize int) {
 	}
 
 	msmtIdStorage["quic-throughput1"] = repDataObj.Measurement_id
-	quicThroughput.NewQuicMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh)
+	quicThroughput.NewQuicMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength)
 	manageQuicMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
 }
 
