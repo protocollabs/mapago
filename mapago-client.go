@@ -34,7 +34,7 @@ func main() {
 	ctrlProto := flag.String("ctrl-protocol", "tcp", "tcp, udp or udp_mcast")
 	ctrlAddr := flag.String("ctrl-addr", "127.0.0.1", "localhost or userdefined addr")
 	port := flag.Int("ctrl-port", CTRL_PORT, "port for interacting with control channel")
-	callSize := flag.Int("call-size", DEF_BUFFER_SIZE, "control application buffer in bytes")
+	callSize := flag.Int("ctrl-buffer-length", DEF_BUFFER_SIZE, "control application buffer in bytes")
 	module := flag.String("module", "tcp-throughput", "tcp-throughput or udp-throughput")
 	streams = flag.Int("streams", MSMT_STREAMS, "setting number of streams")
 	serverAddr = flag.String("addr", "127.0.0.1", "localhost or userdefined addr")
@@ -439,7 +439,7 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 
 	msmtIdStorage["udp-throughput1"] = repDataObj.Measurement_id
 
-	udpThroughput.NewUdpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh)
+	udpThroughput.NewUdpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength)
 
 	manageUdpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
 }

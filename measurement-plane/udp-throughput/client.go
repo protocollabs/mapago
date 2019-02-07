@@ -7,9 +7,7 @@ import "strconv"
 import "fmt"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
-var DEF_BUFFER_SIZE = 8096 * 8
-
-func NewUdpMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataObj, wg *sync.WaitGroup, closeConnCh <-chan string) {
+func NewUdpMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataObj, wg *sync.WaitGroup, closeConnCh <-chan string, callSize int) {
 	lAddr := config.Listen_addr
 
 	serverPorts := shared.ConvStrToIntSlice(msmtStartRep.Measurement.Configuration.UsedPorts)
@@ -17,12 +15,12 @@ func NewUdpMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataO
 	for _, port := range serverPorts {
 		listen := lAddr + ":" + strconv.Itoa(port)
 		wg.Add(1)
-		go udpClientWorker(listen, wg, closeConnCh)
+		go udpClientWorker(listen, wg, closeConnCh, callSize)
 	}
 }
 
-func udpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string) {
-	buf := make([]byte, DEF_BUFFER_SIZE, DEF_BUFFER_SIZE)
+func udpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string, callSize int) {
+	buf := make([]byte, callSize, callSize)
 	conn, err := net.Dial("udp", addr)
 	if err != nil {
 		panic("dial")
