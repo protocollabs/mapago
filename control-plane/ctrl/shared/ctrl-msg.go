@@ -142,6 +142,11 @@ type TcpConnObj struct {
 	AcceptSock *net.TCPConn
 }
 
+type TcpTlsConnObj struct {
+	SrvSock    net.Listener
+	AcceptSock net.Conn
+}
+
 type UdpConn struct {
 	SrvSock *net.UDPConn
 }

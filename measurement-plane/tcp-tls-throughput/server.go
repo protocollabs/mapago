@@ -5,6 +5,7 @@ import "os"
 import "net"
 import "io"
 import "strconv"
+import "crypto/tls"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 type TcpTlsThroughputMsmt struct {
@@ -15,7 +16,7 @@ type TcpTlsThroughputMsmt struct {
 	msmtId     string
 	// TODO: Maybe this is then not valid anymore!!!
 	msmtInfoStorage map[string]*shared.MsmtInfoObj
-	connStorage     map[string]*shared.TcpConnObj
+	connStorage     map[string]*shared.TcpTlsConnObj
 
 	/*
 		- this attribute can be used by start() to RECEIVE cmd from managementplane
@@ -41,7 +42,7 @@ func NewTcpTlsThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- sha
 	tcpMsmt := new(TcpTlsThroughputMsmt)
 
 	tcpMsmt.msmtInfoStorage = make(map[string]*shared.MsmtInfoObj)
-	tcpMsmt.connStorage = make(map[string]*shared.TcpConnObj)
+	tcpMsmt.connStorage = make(map[string]*shared.TcpTlsConnObj)
 	fmt.Println("\nClient TCP request is: ", msmtStartReq)
 
 	tcpMsmt.numStreams, err = strconv.Atoi(msmtStartReq.Measurement.Configuration.Worker)
@@ -68,7 +69,7 @@ func NewTcpTlsThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- sha
 		msmtInfo := shared.MsmtInfoObj{}
 		tcpMsmt.msmtInfoStorage[stream] = &msmtInfo
 
-		tcpConns := shared.TcpConnObj{}
+		tcpConns := shared.TcpTlsConnObj{}
 		tcpMsmt.connStorage[stream] = &tcpConns
 
 		go tcpMsmt.tcpTlsServerWorker(closeCh, heartbeatCh, startPort, c, &msmtInfo, &tcpConns)
@@ -105,27 +106,36 @@ func NewTcpTlsThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- sha
 }
 
 // TODO: most of the TLS changes happen here
-func (tcpMsmt *TcpTlsThroughputMsmt) tcpTlsServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int, msmtInfoPtr *shared.MsmtInfoObj, connPtr *shared.TcpConnObj) {
-	var listener *net.TCPListener
+func (tcpMsmt *TcpTlsThroughputMsmt) tcpTlsServerWorker(closeCh <-chan interface{}, goHeartbeatCh chan<- bool, port int, streamIndex int, msmtInfoPtr *shared.MsmtInfoObj, connPtr *shared.TcpTlsConnObj) {
+	var listener net.Listener
 	fTsExists := false
+	srvCertPath := "/src/github.com/protocollabs/mapago/measurement-plane/tcp-tls-throughput/certs"
 	stream := "stream" + strconv.Itoa(streamIndex)
 	fmt.Printf("\n%s is here", stream)
 
+	goPath := os.Getenv("GOPATH")
+	srvPemPath := goPath + srvCertPath + "/server.pem"
+	srvKeyPath := goPath + srvCertPath + "/server.key"
+
+	// new
+	cert, error := tls.LoadX509KeyPair(srvPemPath, srvKeyPath)
+	if error != nil {
+		fmt.Printf("Cannot loadkeys: %s\n", error)
+		os.Exit(1)
+	}
+
+	// new
+	config := tls.Config{Certificates: []tls.Certificate{cert}}
+
 	for {
-		listen := tcpMsmt.listenAddr + ":" + strconv.Itoa(port)
+		lAddr := tcpMsmt.listenAddr + ":" + strconv.Itoa(port)
 
-		addr, error := net.ResolveTCPAddr("tcp", listen)
-		if error != nil {
-			fmt.Printf("Cannot parse \"%s\": %s\n", listen, error)
-			goHeartbeatCh <- false
-			os.Exit(1)
-		}
-
-		listener, error = net.ListenTCP("tcp", addr)
+		listener, error = tls.Listen("tcp", lAddr, &config)
 		if error == nil {
-			// debug fmt.Printf("\nCan listen on addr: %s\n", listen)
 			tcpMsmt.usedPorts = append(tcpMsmt.usedPorts, port)
+			// SrvSock is net.Listener
 			connPtr.SrvSock = listener
+
 			goHeartbeatCh <- true
 			break
 		}
@@ -133,7 +143,8 @@ func (tcpMsmt *TcpTlsThroughputMsmt) tcpTlsServerWorker(closeCh <-chan interface
 		port++
 	}
 
-	conn, error := listener.AcceptTCP()
+	// AcceptTCP returns *net.TCPConn, Accept returns net.Conn
+	conn, error := listener.Accept()
 	if error != nil {
 		fmt.Printf("Cannot accept: %s\n", error)
 		os.Exit(1)
@@ -141,6 +152,8 @@ func (tcpMsmt *TcpTlsThroughputMsmt) tcpTlsServerWorker(closeCh <-chan interface
 
 	fmt.Printf("Connection from %s\n", conn.RemoteAddr())
 	connPtr.AcceptSock = conn
+
+	// TODO: We could also check tls.ConnectionsState
 
 	message := make([]byte, tcpMsmt.callSize, tcpMsmt.callSize)
 
