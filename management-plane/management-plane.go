@@ -10,6 +10,9 @@ import "github.com/protocollabs/mapago/measurement-plane/tcp-throughput"
 import "github.com/protocollabs/mapago/measurement-plane/udp-throughput"
 import "github.com/protocollabs/mapago/measurement-plane/quic-throughput"
 
+// TODO: add tcp-tls package
+import "github.com/protocollabs/mapago/measurement-plane/tcp-tls-throughput"
+
 var msmtStorage map[string]*shared.MsmtStorageEntry
 var mapInited = false
 var startPort = 7000
@@ -30,6 +33,29 @@ func HandleMsmtStartReq(ctrlCh chan<- shared.ChMsmt2Ctrl, msmtStartReq *shared.D
 		}
 
 		tcpMsmtObj := tcpThroughput.NewTcpMsmtObj(msmtCh, ctrlCh, msmtStartReq, msmtId, startPort)
+
+		msmtEntry := new(shared.MsmtStorageEntry)
+		msmtEntry.MsmtCh = msmtCh
+		msmtEntry.MsmtObj = tcpMsmtObj
+		msmtStorage[msmtId] = msmtEntry
+
+		fmt.Println("\nmsmtStorage content: ", msmtStorage)
+
+	// TODO: add case 'tcp-tls-throughout'
+	case "tcp-tls-throughput":
+		/*
+			- TODO: differ in constructing msmtId
+			- i.e. send only ID not hostaddr
+		*/
+		msmtId := constructMsmtId(cltAddr)
+		msmtCh := make(chan shared.ChMgmt2Msmt)
+
+		if mapInited == false {
+			msmtStorage = make(map[string]*shared.MsmtStorageEntry)
+			mapInited = true
+		}
+
+		tcpMsmtObj := tcpTlsThroughput.NewTcpTlsThroughputMsmt(msmtCh, ctrlCh, msmtStartReq, msmtId, startPort)
 
 		msmtEntry := new(shared.MsmtStorageEntry)
 		msmtEntry.MsmtCh = msmtCh
@@ -102,6 +128,7 @@ func HandleMsmtStopReq(msmtId string) {
 	switch msmstObj := msmtEntry.MsmtObj.(type) {
 	case *tcpThroughput.TcpMsmtObj:
 		msmstObj.CloseConn()
+	// TODO: case *tcpTlsThroughput....
 	case *udpThroughput.UdpThroughputMsmt:
 		msmstObj.CloseConn()
 	case *quicThroughput.QuicThroughputMsmt:
@@ -126,6 +153,7 @@ func HandleMsmtInfoReq(msmtId string) {
 	switch msmstObj := msmtEntry.MsmtObj.(type) {
 	case *tcpThroughput.TcpMsmtObj:
 		msmstObj.GetMsmtInfo()
+	// TODO: case *tcpTlsThroughput....
 	case *udpThroughput.UdpThroughputMsmt:
 		msmstObj.GetMsmtInfo()
 	case *quicThroughput.QuicThroughputMsmt:
