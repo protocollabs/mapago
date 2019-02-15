@@ -1,10 +1,10 @@
 package tcpTlsThroughput
 
 import "sync"
-import "net"
 import "os"
 import "strconv"
 import "fmt"
+import "crypto/tls"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 func NewTcpTlsMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataObj, wg *sync.WaitGroup, closeConnCh <-chan string, callSize int) {
@@ -20,10 +20,26 @@ func NewTcpTlsMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.Da
 
 func tcpTlsClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string, callSize int) {
 	buf := make([]byte, callSize, callSize)
-	conn, err := net.Dial("tcp", addr)
+	certPath := "/src/github.com/protocollabs/mapago/measurement-plane/tcp-tls-throughput/certs"
+	goPath := os.Getenv("GOPATH")
+	cltPemPath := goPath + certPath + "/client.pem"
+	cltKeyPath := goPath + certPath + "/client.key"
+
+	cert, error := tls.LoadX509KeyPair(cltPemPath, cltKeyPath)
+	if error != nil {
+		fmt.Printf("Cannot loadkeys: %s\n", error)
+		os.Exit(1)
+	}
+
+	// accept any certificate presented by server
+	config := tls.Config{Certificates: []tls.Certificate{cert}, InsecureSkipVerify: true}
+
+	conn, err := tls.Dial("tcp", addr, &config)
 	if err != nil {
 		panic("dial")
 	}
+
+	// TODO: check connection state
 
 	for {
 		select {

@@ -10,6 +10,7 @@ import "strconv"
 import "strings"
 import "github.com/protocollabs/mapago/control-plane/ctrl/client-protocols"
 import "github.com/protocollabs/mapago/measurement-plane/tcp-throughput"
+import "github.com/protocollabs/mapago/measurement-plane/tcp-tls-throughput"
 import "github.com/protocollabs/mapago/measurement-plane/udp-throughput"
 import "github.com/protocollabs/mapago/measurement-plane/quic-throughput"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
@@ -24,7 +25,7 @@ var idStorage map[string]string
 var msmtStorageInited = false
 var idStorageInited = false
 var seqNo uint64
-var streams *int 
+var streams *int
 var serverAddr *string
 var bufLength *int
 var msmtUpdateTime *uint
@@ -35,7 +36,7 @@ func main() {
 	ctrlAddr := flag.String("ctrl-addr", "127.0.0.1", "localhost or userdefined addr")
 	port := flag.Int("ctrl-port", CTRL_PORT, "port for interacting with control channel")
 	callSize := flag.Int("ctrl-buffer-length", DEF_BUFFER_SIZE, "control application buffer in bytes")
-	module := flag.String("module", "tcp-throughput", "tcp-throughput or udp-throughput")
+	module := flag.String("module", "tcp-throughput", "tcp-throughput, tcp-tls-throughput, udp-throughput, quic-throughput")
 	streams = flag.Int("streams", MSMT_STREAMS, "setting number of streams")
 	serverAddr = flag.String("addr", "127.0.0.1", "localhost or userdefined addr")
 	bufLength = flag.Int("buffer-length", DEF_BUFFER_SIZE, "msmt application buffer in bytes")
@@ -45,18 +46,18 @@ func main() {
 	flag.Parse()
 
 	/*
-	fmt.Println("mapago(c) - 2018")
-	fmt.Println("Client side")
-	fmt.Println("Control protocol:", *ctrlProto)
-	fmt.Println("Control addr:", *ctrlAddr)
-	fmt.Println("Control Port:", *port)
-	fmt.Println("Call-Size: ", *callSize)
-	fmt.Println("module: ", *module)
-	fmt.Println("Msmt-Streams: ", *streams)
-	fmt.Println("Msmt-Addr: ", *serverAddr)
-	fmt.Println("Msmt-CallSize: ", *bufLength)
-	fmt.Println("Update-Interval: ", *msmtUpdateTime)
-	fmt.Println("Msmt-time: ", *msmtTime)
+		fmt.Println("mapago(c) - 2018")
+		fmt.Println("Client side")
+		fmt.Println("Control protocol:", *ctrlProto)
+		fmt.Println("Control addr:", *ctrlAddr)
+		fmt.Println("Control Port:", *port)
+		fmt.Println("Call-Size: ", *callSize)
+		fmt.Println("module: ", *module)
+		fmt.Println("Msmt-Streams: ", *streams)
+		fmt.Println("Msmt-Addr: ", *serverAddr)
+		fmt.Println("Msmt-CallSize: ", *bufLength)
+		fmt.Println("Update-Interval: ", *msmtUpdateTime)
+		fmt.Println("Msmt-time: ", *msmtTime)
 	*/
 
 	if *ctrlProto == "tcp" {
@@ -103,6 +104,8 @@ func runTcpCtrlClient(addr string, port int, callSize int, module string) {
 
 	if module == "tcp-throughput" {
 		sendTcpMsmtStartRequest(addr, port, callSize)
+	} else if module == "tcp-tls-throughput" {
+		sendTcpTlsMsmtStartRequest(addr, port, callSize)
 	} else if module == "udp-throughput" {
 		sendUdpMsmtStartRequest(addr, port, callSize)
 	} else if module == "quic-throughput" {
@@ -112,6 +115,143 @@ func runTcpCtrlClient(addr string, port int, callSize int, module string) {
 	}
 }
 
+func sendTcpTlsMsmtStartRequest(addr string, port int, callSize int) {
+	var wg sync.WaitGroup
+	closeConnCh := make(chan string)
+	tcpObj := clientProtos.NewTcpObj("TcpTlsMsmtStartReqConn", addr, port, callSize)
+
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
+
+	if val, ok := idStorage["host-uuid"]; ok {
+		reqDataObj.Id = val
+	} else {
+		fmt.Println("\nFound not the id")
+	}
+
+	seqNo++
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
+	reqDataObj.Secret = "fancySecret"
+	reqDataObj.Measurement_delay = "666"
+	reqDataObj.Measurement_time_max = "666"
+
+	// CHECK THIS
+	msmtObj := constructMeasurementObj("tcp-tls-throughput", "module")
+	reqDataObj.Measurement = *msmtObj
+
+	numWorker, err := strconv.Atoi(reqDataObj.Measurement.Configuration.Worker)
+	if err != nil {
+		fmt.Printf("Could not parse Workers: %s\n", err)
+		os.Exit(1)
+	}
+
+	reqJson := shared.ConvDataStructToJson(reqDataObj)
+	// debug fmt.Printf("\nmsmt start request JSON is: % s", reqJson)
+
+	repDataObj := tcpObj.StartMeasurement(reqJson)
+
+	if msmtStorageInited == false {
+		msmtIdStorage = make(map[string]string)
+		msmtStorageInited = true
+	}
+
+	msmtIdStorage["tcp-tls-throughput1"] = repDataObj.Measurement_id
+	tcpTlsThroughput.NewTcpTlsMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength)
+	manageTcpTlsMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
+}
+
+func manageTcpTlsMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
+	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
+	/* TODO: nicht zeitgetriggert sonder daten getriggert
+	wenn letzte daten erhalten => close conns
+	würde Probleme geben bei starker packet verlustrate
+	wir sagen 10s und während dessen empfangen wir nichts
+	dann bauen wir schon verbindung ab => client ist immer noch im retransmit
+	*/
+	tMsmtStopReq := time.NewTimer(time.Duration(*msmtTime) * time.Second)
+
+	for {
+		select {
+		case <-tMsmtInfoReq.C:
+			sendTcpTlsMsmtInfoRequest(addr, port, callSize)
+			tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
+
+		case <-tMsmtStopReq.C:
+			tMsmtInfoReq.Stop()
+
+			for i := 0; i < workers; i++ {
+				closeConnCh <- "close"
+			}
+
+			wg.Wait()
+
+			// all connections are now terminated: server should shut down aswell
+			sendTcpTlsMsmtStopRequest(addr, port, callSize)
+			return
+		}
+	}
+}
+
+func sendTcpTlsMsmtInfoRequest(addr string, port int, callSize int) {
+	tcpObj := clientProtos.NewTcpObj("TcpTlsMsmtInfoReqConn", addr, port, callSize)
+
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.MEASUREMENT_INFO_REQUEST
+
+	if val, ok := idStorage["host-uuid"]; ok {
+		reqDataObj.Id = val
+	} else {
+		fmt.Println("\nFound not the id")
+	}
+
+	seqNo++
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
+	reqDataObj.Secret = "fancySecret"
+
+	if val, ok := msmtIdStorage["tcp-tls-throughput1"]; ok {
+		reqDataObj.Measurement_id = val
+	} else {
+		fmt.Println("\nFound not the measurement id for tcp tls throughput")
+	}
+
+	reqJson := shared.ConvDataStructToJson(reqDataObj)
+	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
+
+	msmtInfoRep := tcpObj.GetMeasurementInfo(reqJson)
+	prepareOutput(msmtInfoRep)
+}
+
+// this stops the QUIC throughput measurement
+// underlying control channel is TCP based
+func sendTcpTlsMsmtStopRequest(addr string, port int, callSize int) {
+	tcpObj := clientProtos.NewTcpObj("TcpTlsMsmtStopReqConn", addr, port, callSize)
+
+	reqDataObj := new(shared.DataObj)
+	reqDataObj.Type = shared.MEASUREMENT_STOP_REQUEST
+
+	if val, ok := idStorage["host-uuid"]; ok {
+		reqDataObj.Id = val
+	} else {
+		fmt.Println("\nFound not the id")
+	}
+
+	seqNo++
+	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
+	reqDataObj.Secret = "fancySecret"
+
+	if val, ok := msmtIdStorage["tcp-tls-throughput1"]; ok {
+		reqDataObj.Measurement_id = val
+	} else {
+		fmt.Println("\nFound not the measurement id for tcp tls throughput")
+	}
+
+	reqJson := shared.ConvDataStructToJson(reqDataObj)
+	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
+
+	msmtStopRep := tcpObj.StopMeasurement(reqJson)
+	prepareOutput(msmtStopRep)
+}
+
 func sendQuicMsmtStartRequest(addr string, port int, callSize int) {
 	var wg sync.WaitGroup
 	closeConnCh := make(chan string)
@@ -119,13 +259,13 @@ func sendQuicMsmtStartRequest(addr string, port int, callSize int) {
 
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
-		
+
 	if val, ok := idStorage["host-uuid"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
 	}
-	
+
 	seqNo++
 	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
@@ -135,13 +275,13 @@ func sendQuicMsmtStartRequest(addr string, port int, callSize int) {
 	// STOPPED
 	msmtObj := constructMeasurementObj("quic-throughput", "module")
 	reqDataObj.Measurement = *msmtObj
-	
+
 	numWorker, err := strconv.Atoi(reqDataObj.Measurement.Configuration.Worker)
 	if err != nil {
 		fmt.Printf("Could not parse Workers: %s\n", err)
 		os.Exit(1)
 	}
-	
+
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	// debug fmt.Printf("\nmsmt start request JSON is: % s", reqJson)
 
@@ -177,11 +317,11 @@ func manageQuicMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clo
 			tMsmtInfoReq.Stop()
 
 			for i := 0; i < workers; i++ {
-				closeConnCh<- "close"
+				closeConnCh <- "close"
 			}
 
 			wg.Wait()
-			
+
 			// all connections are now terminated: server should shut down aswell
 			sendQuicMsmtStopRequest(addr, port, callSize)
 			return
@@ -194,13 +334,13 @@ func sendQuicMsmtInfoRequest(addr string, port int, callSize int) {
 
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_INFO_REQUEST
-	
+
 	if val, ok := idStorage["host-uuid"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
 	}
-	
+
 	seqNo++
 	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
@@ -218,7 +358,6 @@ func sendQuicMsmtInfoRequest(addr string, port int, callSize int) {
 	prepareOutput(msmtInfoRep)
 }
 
-
 // this stops the QUIC throughput measurement
 // underlying control channel is TCP based
 func sendQuicMsmtStopRequest(addr string, port int, callSize int) {
@@ -226,13 +365,13 @@ func sendQuicMsmtStopRequest(addr string, port int, callSize int) {
 
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_STOP_REQUEST
-	
+
 	if val, ok := idStorage["host-uuid"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
 	}
-	
+
 	seqNo++
 	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
@@ -250,7 +389,6 @@ func sendQuicMsmtStopRequest(addr string, port int, callSize int) {
 	prepareOutput(msmtStopRep)
 }
 
-
 // this starts the TCP throughput measurement
 // underlying control channel is TCP based
 func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
@@ -260,13 +398,13 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
-		
+
 	if val, ok := idStorage["host-uuid"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
 	}
-	
+
 	seqNo++
 	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
@@ -275,13 +413,12 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 
 	msmtObj := constructMeasurementObj("tcp-throughput", "module")
 	reqDataObj.Measurement = *msmtObj
-	
+
 	numWorker, err := strconv.Atoi(reqDataObj.Measurement.Configuration.Worker)
 	if err != nil {
 		fmt.Printf("Could not parse Workers: %s\n", err)
 		os.Exit(1)
 	}
-	
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	// debug fmt.Printf("\nmsmt start request JSON is: % s", reqJson)
@@ -295,13 +432,10 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 
 	msmtIdStorage["tcp-throughput1"] = repDataObj.Measurement_id
 
-
 	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength)
 
-	
 	manageTcpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
 }
-
 
 func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
 	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
@@ -323,11 +457,11 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 			tMsmtInfoReq.Stop()
 
 			for i := 0; i < workers; i++ {
-				closeConnCh<- "close"
+				closeConnCh <- "close"
 			}
 
 			wg.Wait()
-			
+
 			// all connections are now terminated: server should shut down aswell
 			sendTcpMsmtStopRequest(addr, port, callSize)
 
@@ -341,13 +475,13 @@ func sendTcpMsmtInfoRequest(addr string, port int, callSize int) {
 
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_INFO_REQUEST
-	
+
 	if val, ok := idStorage["host-uuid"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
 	}
-	
+
 	seqNo++
 	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
@@ -365,7 +499,6 @@ func sendTcpMsmtInfoRequest(addr string, port int, callSize int) {
 	prepareOutput(msmtInfoRep)
 }
 
-
 // this stops the TCP throughput measurement
 // underlying control channel is TCP based
 func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
@@ -373,13 +506,13 @@ func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
 
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_STOP_REQUEST
-	
+
 	if val, ok := idStorage["host-uuid"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
 	}
-	
+
 	seqNo++
 	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
@@ -406,7 +539,7 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_START_REQUEST
-	
+
 	if val, ok := idStorage["host-uuid"]; ok {
 		reqDataObj.Id = val
 	} else {
@@ -444,7 +577,6 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	manageUdpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
 }
 
-
 func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
 	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
 	/* TODO: nicht zeitgetriggert sonder daten getriggert
@@ -471,7 +603,7 @@ func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 			// sendUdpMsmtStopRequest(addr, port, callSize)
 
 			for i := 0; i < workers; i++ {
-				closeConnCh<- "close"
+				closeConnCh <- "close"
 			}
 
 			wg.Wait()
@@ -487,13 +619,13 @@ func sendUdpMsmtInfoRequest(addr string, port int, callSize int) {
 
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_INFO_REQUEST
-	
+
 	if val, ok := idStorage["host-uuid"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
 	}
-	
+
 	seqNo++
 	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
@@ -514,13 +646,13 @@ func sendUdpMsmtStopRequest(addr string, port int, callSize int) {
 
 	reqDataObj := new(shared.DataObj)
 	reqDataObj.Type = shared.MEASUREMENT_STOP_REQUEST
-	
+
 	if val, ok := idStorage["host-uuid"]; ok {
 		reqDataObj.Id = val
 	} else {
 		fmt.Println("\nFound not the id")
 	}
-	
+
 	seqNo++
 	reqDataObj.Seq = strconv.FormatUint(seqNo, 10)
 	reqDataObj.Secret = "fancySecret"
@@ -542,12 +674,11 @@ func constructMeasurementObj(name string, module string) *shared.MeasurementObj 
 	MsmtObj.Type = module
 
 	// we dont need a configuration anymore
-//	confObj := shared.ConstructConfiguration(CONFIG_FILE)
+	//	confObj := shared.ConstructConfiguration(CONFIG_FILE)
 	confObj := new(shared.ConfigurationObj)
 	confObj.Worker = strconv.Itoa(*streams)
 	confObj.Listen_addr = *serverAddr
 	confObj.Call_size = strconv.Itoa(*bufLength)
-
 
 	MsmtObj.Configuration = *confObj
 	return MsmtObj
@@ -587,6 +718,8 @@ func runUdpCtrlClient(addr string, port int, callSize int, module string) {
 
 	if module == "tcp-throughput" {
 		sendTcpMsmtStartRequest(addr, port, callSize)
+	} else if module == "tcp-tls-throughput" {
+		sendTcpTlsMsmtStartRequest(addr, port, callSize)
 	} else if module == "udp-throughput" {
 		sendUdpMsmtStartRequest(addr, port, callSize)
 	} else if module == "quic-throughput" {
@@ -626,6 +759,8 @@ func runUdpMcastCtrlClient(addr string, port int, callSize int, module string) {
 
 	if module == "tcp-throughput" {
 		sendTcpMsmtStartRequest(addr, port, callSize)
+	} else if module == "tcp-tls-throughput" {
+		sendTcpTlsMsmtStartRequest(addr, port, callSize)
 	} else if module == "udp-throughput" {
 		sendUdpMsmtStartRequest(addr, port, callSize)
 	} else if module == "quic-throughput" {
@@ -670,8 +805,8 @@ func prepareOutput(msmtInfoRep *shared.DataObj) {
 		evaluationStr.WriteString(dataElement.Received_bytes)
 		evaluationStr.WriteString("\"}")
 
-		if index != len(msmtInfoRep.Data.DataElements) - 1 {
-			evaluationStr.WriteString(", ")			
+		if index != len(msmtInfoRep.Data.DataElements)-1 {
+			evaluationStr.WriteString(", ")
 		}
 	}
 
@@ -680,4 +815,3 @@ func prepareOutput(msmtInfoRep *shared.DataObj) {
 
 	fmt.Println(evaluationStr.String())
 }
-
