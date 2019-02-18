@@ -8,21 +8,19 @@ import "crypto/tls"
 import quic "github.com/lucas-clemente/quic-go"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
-var DEF_BUFFER_SIZE = 8096 * 8
-
-func NewQuicMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataObj, wg *sync.WaitGroup, closeConnCh <-chan string) {
+func NewQuicMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataObj, wg *sync.WaitGroup, closeConnCh <-chan string, callSize int) {
 	lAddr := config.Listen_addr
 	serverPorts := shared.ConvStrToIntSlice(msmtStartRep.Measurement.Configuration.UsedPorts)
 
 	for _, port := range serverPorts {
 		listen := lAddr + ":" + strconv.Itoa(port)
 		wg.Add(1)
-		go quicClientWorker(listen, wg, closeConnCh)
+		go quicClientWorker(listen, wg, closeConnCh, callSize)
 	}
 }
 
-func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string) {
-	buf := make([]byte, DEF_BUFFER_SIZE, DEF_BUFFER_SIZE)
+func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string, callSize int) {
+	buf := make([]byte, callSize, callSize)
 
 	tlsConf := tls.Config{InsecureSkipVerify: true}
 

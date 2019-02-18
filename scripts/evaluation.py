@@ -96,8 +96,10 @@ for entry in db:
 measurement_length = (datetime_max - datetime_min).total_seconds()
 bytes_sec = bytes_rx / measurement_length
 Mbits_sec = (bytes_sec * 8) / 10**6
+Kbits_sec = (bytes_sec * 8) / 10**3
 print('overall bandwith: {} bytes/sec'.format(bytes_sec))
 print('overall bandwith: {} Mbits/sec'.format(Mbits_sec))
+print('overall bandwith: {} Kbits/sec'.format(Kbits_sec))
 print('measurement length: {} sec]'.format(measurement_length))
 print('received: {} bytes]'.format(bytes_rx))
 

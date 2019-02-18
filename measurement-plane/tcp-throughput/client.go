@@ -7,21 +7,19 @@ import "strconv"
 import "fmt"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
-var DEF_BUFFER_SIZE = 8096 * 8
-
-func NewTcpMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataObj, wg *sync.WaitGroup, closeConnCh <-chan string) {
+func NewTcpMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataObj, wg *sync.WaitGroup, closeConnCh <-chan string, callSize int) {
 	lAddr := config.Listen_addr
 	serverPorts := shared.ConvStrToIntSlice(msmtStartRep.Measurement.Configuration.UsedPorts)
 
 	for _, port := range serverPorts {
 		listen := lAddr + ":" + strconv.Itoa(port)
 		wg.Add(1)
-		go tcpClientWorker(listen, wg, closeConnCh)
+		go tcpClientWorker(listen, wg, closeConnCh, callSize)
 	}
 }
 
-func tcpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string) {
-	buf := make([]byte, DEF_BUFFER_SIZE, DEF_BUFFER_SIZE)
+func tcpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string, callSize int) {
+	buf := make([]byte, callSize, callSize)
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		panic("dial")
@@ -39,6 +37,7 @@ func tcpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string)
 				os.Exit(1)
 			}
 		default:
+
 			_, err := conn.Write(buf)
 			if err != nil {
 				fmt.Printf("\nWrite error: %s", err)
