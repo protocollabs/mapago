@@ -65,7 +65,8 @@ func NewUdpThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- shared
 	for c := 1; c <= udpMsmt.numStreams; c++ {
 		stream := "stream" + strconv.Itoa(c)
 
-		msmtInfo := shared.MsmtInfoObj{}
+		initTs := shared.ConvCurrDateToStr()
+		msmtInfo := shared.MsmtInfoObj{Bytes: 0, FirstTs: initTs, LastTs: initTs}
 		udpMsmt.msmtInfoStorage[stream] = &msmtInfo
 
 		udpConn := shared.UdpConn{}

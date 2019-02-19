@@ -89,6 +89,11 @@ for entry in db:
     # or we pay attention to a period where nothing is transmitted
     duration_of_period = (datetime_max - prev_datetime_max).total_seconds()
     prev_datetime_max = datetime_max
+
+    if mbits_per_period == 0.0 or duration_of_period == 0.0:
+            print("\nnothing changed, skippin this")
+            continue
+
     throughput_of_period = mbits_per_period / duration_of_period
     normalized.append([curr_msmt_time, throughput_of_period])
 
