@@ -398,6 +398,9 @@ func sendQuicMsmtStopRequest(addr string, port int, callSize int) {
 // this starts the TCP throughput measurement
 // underlying control channel is TCP based
 func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
+	// bytes per stream
+	var msmtByteStorage map[string]*uint
+	var streamBytes uint
 	var wg sync.WaitGroup
 	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtStartReqConn", addr, port, callSize)
@@ -437,6 +440,15 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	}
 
 	msmtIdStorage["tcp-throughput1"] = repDataObj.Measurement_id
+
+	// intialise 
+	msmtByteStorage = make(map[string]*uint)
+	numStreams, _ := strconv.Atoi(msmtObj.Configuration.Worker)
+	for c := 1; c <= numStreams; c++ {
+		stream := "stream" + strconv.Itoa(c)
+		streamBytes = 0
+		msmtByteStorage[stream] = &streamBytes
+	}
 
 	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength)
 
