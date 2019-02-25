@@ -400,7 +400,6 @@ func sendQuicMsmtStopRequest(addr string, port int, callSize int) {
 func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	// bytes per stream
 	var msmtByteStorage map[string]*uint
-	var streamBytes uint
 	var wg sync.WaitGroup
 	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtStartReqConn", addr, port, callSize)
@@ -446,45 +445,100 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	numStreams, _ := strconv.Atoi(msmtObj.Configuration.Worker)
 	for c := 1; c <= numStreams; c++ {
 		stream := "stream" + strconv.Itoa(c)
-		streamBytes = 0
+		streamBytes := uint(0)
 		msmtByteStorage[stream] = &streamBytes
 	}
 
-	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength)
+	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, msmtByteStorage)
 
-	manageTcpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
+	manageTcpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker, msmtByteStorage)
 }
 
-func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
-	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
-	/* TODO: nicht zeitgetriggert sonder daten getriggert
-	wenn letzte daten erhalten => close conns
-	würde Probleme geben bei starker packet verlustrate
-	wir sagen 10s und während dessen empfangen wir nichts
-	dann bauen wir schon verbindung ab => client ist immer noch im retransmit
-	*/
-	tMsmtStopReq := time.NewTimer(time.Duration(*msmtTime) * time.Second)
+func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int, byteStore map[string]*uint) {
+	
+	// TODO source that into extra func
+	if *msmtTermination == "time" {
+		// debug fmt.Println("\n termination is: ", *msmtTermination)
 
-	for {
-		select {
-		case <-tMsmtInfoReq.C:
-			sendTcpMsmtInfoRequest(addr, port, callSize)
-			tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
+		tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
+		/* TODO: nicht zeitgetriggert sonder daten getriggert
+		wenn letzte daten erhalten => close conns
+		würde Probleme geben bei starker packet verlustrate
+		wir sagen 10s und während dessen empfangen wir nichts
+		dann bauen wir schon verbindung ab => client ist immer noch im retransmit
+		*/
+		tMsmtStopReq := time.NewTimer(time.Duration(*msmtTime) * time.Second)
 
-		case <-tMsmtStopReq.C:
-			tMsmtInfoReq.Stop()
+		for {
+			select {
+			case <-tMsmtInfoReq.C:
+				sendTcpMsmtInfoRequest(addr, port, callSize)
+				tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
 
-			for i := 0; i < workers; i++ {
-				closeConnCh <- "close"
+			case <-tMsmtStopReq.C:
+				tMsmtInfoReq.Stop()
+
+				for i := 0; i < workers; i++ {
+					closeConnCh <- "close"
+				}
+
+				wg.Wait()
+
+				// all connections are now terminated: server should shut down aswell
+				sendTcpMsmtStopRequest(addr, port, callSize)
+
+				return
 			}
-
-			wg.Wait()
-
-			// all connections are now terminated: server should shut down aswell
-			sendTcpMsmtStopRequest(addr, port, callSize)
-
-			return
 		}
+
+	} else if *msmtTermination == "byte" {
+		// handle byte termination
+		var sumBytes uint
+		stopMsmt := false
+		// debug fmt.Println("\n termination is: ", *msmtTermination)
+		
+		tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
+
+		for {
+			select {
+			case <-tMsmtInfoReq.C:
+				sendTcpMsmtInfoRequest(addr, port, callSize)
+				tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
+
+			default:
+				// sweep over all byte store elements
+				// every element is only called once
+				for _, val := range byteStore {
+					sumBytes += *val
+					// debug fmt.Println("\nSum Bytes: ", sumBytes)
+
+					if sumBytes >= *msmtByteCount {
+						// debug fmt.Println("\nEnought bytes sent")
+						stopMsmt = true
+						break
+					}
+				}
+
+				if stopMsmt == true {
+					tMsmtInfoReq.Stop()
+
+					for i := 0; i < workers; i++ {
+						closeConnCh <- "close"
+					}
+
+					wg.Wait()
+
+					// all connections are now terminated: server should shut down aswell
+					sendTcpMsmtStopRequest(addr, port, callSize)
+
+					return
+				}
+			}
+		}
+	} else {
+		// error
+		fmt.Printf("\nTcpClient worker did not understand termination cmd: %s", *msmtTermination)
+		os.Exit(1)
 	}
 }
 
