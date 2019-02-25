@@ -8,6 +8,7 @@ import "sync"
 import "time"
 import "strconv"
 import "strings"
+import "math"
 import "github.com/protocollabs/mapago/control-plane/ctrl/client-protocols"
 import "github.com/protocollabs/mapago/measurement-plane/tcp-throughput"
 import "github.com/protocollabs/mapago/measurement-plane/tcp-tls-throughput"
@@ -17,6 +18,7 @@ import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
+var BYTE_COUNT = 1 * uint(math.Pow(10,6))  
 var CONFIG_FILE = "conf.json"
 var MSMT_STREAMS = 1
 
@@ -29,7 +31,9 @@ var streams *int
 var serverAddr *string
 var bufLength *int
 var msmtUpdateTime *uint
+var msmtTermination *string
 var msmtTime *uint
+var msmtByteCount *uint
 
 func main() {
 	ctrlProto := flag.String("ctrl-protocol", "tcp", "tcp, udp or udp_mcast")
@@ -41,7 +45,9 @@ func main() {
 	serverAddr = flag.String("addr", "127.0.0.1", "localhost or userdefined addr")
 	bufLength = flag.Int("buffer-length", DEF_BUFFER_SIZE, "msmt application buffer in bytes")
 	msmtUpdateTime = flag.Uint("update-interval", 2, "msmt update interval in seconds")
+	msmtTermination = flag.String("termination", "time", "time, byte")
 	msmtTime = flag.Uint("msmt-time", 10, "complete msmt time in seconds")
+	msmtByteCount = flag.Uint("msmt-byte-count", BYTE_COUNT, "number of bytes when msmt is terminated")
 
 	flag.Parse()
 
