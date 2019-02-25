@@ -66,7 +66,8 @@ func NewTcpTlsThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- sha
 	for c := 1; c <= tcpMsmt.numStreams; c++ {
 		stream := "stream" + strconv.Itoa(c)
 
-		msmtInfo := shared.MsmtInfoObj{}
+		initTs := shared.ConvCurrDateToStr()
+		msmtInfo := shared.MsmtInfoObj{Bytes: 0, FirstTs: initTs, LastTs: initTs}
 		tcpMsmt.msmtInfoStorage[stream] = &msmtInfo
 
 		tcpConns := shared.TcpTlsConnObj{}

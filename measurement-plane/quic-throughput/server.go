@@ -71,7 +71,8 @@ func NewQuicThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- share
 	for c := 1; c <= quicMsmt.numStreams; c++ {
 		stream := "stream" + strconv.Itoa(c)
 
-		msmtInfo := shared.MsmtInfoObj{}
+		initTs := shared.ConvCurrDateToStr()
+		msmtInfo := shared.MsmtInfoObj{Bytes: 0, FirstTs: initTs, LastTs: initTs}
 		quicMsmt.msmtInfoStorage[stream] = &msmtInfo
 
 		quicConns := shared.QuicConn{}

@@ -8,6 +8,7 @@ import "sync"
 import "time"
 import "strconv"
 import "strings"
+import "math"
 import "github.com/protocollabs/mapago/control-plane/ctrl/client-protocols"
 import "github.com/protocollabs/mapago/measurement-plane/tcp-throughput"
 import "github.com/protocollabs/mapago/measurement-plane/tcp-tls-throughput"
@@ -17,6 +18,7 @@ import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
+var BYTE_COUNT = 1 * uint(math.Pow(10,6))  
 var CONFIG_FILE = "conf.json"
 var MSMT_STREAMS = 1
 
@@ -29,7 +31,9 @@ var streams *int
 var serverAddr *string
 var bufLength *int
 var msmtUpdateTime *uint
+var msmtTermination *string
 var msmtTime *uint
+var msmtByteCount *uint
 
 func main() {
 	ctrlProto := flag.String("ctrl-protocol", "tcp", "tcp, udp or udp_mcast")
@@ -41,7 +45,9 @@ func main() {
 	serverAddr = flag.String("addr", "127.0.0.1", "localhost or userdefined addr")
 	bufLength = flag.Int("buffer-length", DEF_BUFFER_SIZE, "msmt application buffer in bytes")
 	msmtUpdateTime = flag.Uint("update-interval", 2, "msmt update interval in seconds")
+	msmtTermination = flag.String("termination", "time", "time, byte")
 	msmtTime = flag.Uint("msmt-time", 10, "complete msmt time in seconds")
+	msmtByteCount = flag.Uint("msmt-byte-count", BYTE_COUNT, "number of bytes when msmt is terminated")
 
 	flag.Parse()
 
@@ -392,6 +398,8 @@ func sendQuicMsmtStopRequest(addr string, port int, callSize int) {
 // this starts the TCP throughput measurement
 // underlying control channel is TCP based
 func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
+	// bytes per stream
+	var msmtByteStorage map[string]*uint
 	var wg sync.WaitGroup
 	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtStartReqConn", addr, port, callSize)
@@ -432,41 +440,105 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 
 	msmtIdStorage["tcp-throughput1"] = repDataObj.Measurement_id
 
-	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength)
+	// intialise 
+	msmtByteStorage = make(map[string]*uint)
+	numStreams, _ := strconv.Atoi(msmtObj.Configuration.Worker)
+	for c := 1; c <= numStreams; c++ {
+		stream := "stream" + strconv.Itoa(c)
+		streamBytes := uint(0)
+		msmtByteStorage[stream] = &streamBytes
+	}
 
-	manageTcpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
+	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, msmtByteStorage)
+
+	manageTcpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker, msmtByteStorage)
 }
 
-func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
-	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
-	/* TODO: nicht zeitgetriggert sonder daten getriggert
-	wenn letzte daten erhalten => close conns
-	würde Probleme geben bei starker packet verlustrate
-	wir sagen 10s und während dessen empfangen wir nichts
-	dann bauen wir schon verbindung ab => client ist immer noch im retransmit
-	*/
-	tMsmtStopReq := time.NewTimer(time.Duration(*msmtTime) * time.Second)
+func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int, byteStore map[string]*uint) {
+	
+	// TODO source that into extra func
+	if *msmtTermination == "time" {
+		// debug fmt.Println("\n termination is: ", *msmtTermination)
 
-	for {
-		select {
-		case <-tMsmtInfoReq.C:
-			sendTcpMsmtInfoRequest(addr, port, callSize)
-			tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
+		tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
+		/* TODO: nicht zeitgetriggert sonder daten getriggert
+		wenn letzte daten erhalten => close conns
+		würde Probleme geben bei starker packet verlustrate
+		wir sagen 10s und während dessen empfangen wir nichts
+		dann bauen wir schon verbindung ab => client ist immer noch im retransmit
+		*/
+		tMsmtStopReq := time.NewTimer(time.Duration(*msmtTime) * time.Second)
 
-		case <-tMsmtStopReq.C:
-			tMsmtInfoReq.Stop()
+		for {
+			select {
+			case <-tMsmtInfoReq.C:
+				sendTcpMsmtInfoRequest(addr, port, callSize)
+				tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
 
-			for i := 0; i < workers; i++ {
-				closeConnCh <- "close"
+			case <-tMsmtStopReq.C:
+				tMsmtInfoReq.Stop()
+
+				for i := 0; i < workers; i++ {
+					closeConnCh <- "close"
+				}
+
+				wg.Wait()
+
+				// all connections are now terminated: server should shut down aswell
+				sendTcpMsmtStopRequest(addr, port, callSize)
+
+				return
 			}
-
-			wg.Wait()
-
-			// all connections are now terminated: server should shut down aswell
-			sendTcpMsmtStopRequest(addr, port, callSize)
-
-			return
 		}
+
+	} else if *msmtTermination == "byte" {
+		// handle byte termination
+		var sumBytes uint
+		stopMsmt := false
+		// debug fmt.Println("\n termination is: ", *msmtTermination)
+		
+		tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
+
+		for {
+			select {
+			case <-tMsmtInfoReq.C:
+				sendTcpMsmtInfoRequest(addr, port, callSize)
+				tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
+
+			default:
+				// sweep over all byte store elements
+				// every element is only called once
+				for _, val := range byteStore {
+					sumBytes += *val
+					// debug fmt.Println("\nSum Bytes: ", sumBytes)
+
+					if sumBytes >= *msmtByteCount {
+						// debug fmt.Println("\nEnought bytes sent")
+						stopMsmt = true
+						break
+					}
+				}
+
+				if stopMsmt == true {
+					tMsmtInfoReq.Stop()
+
+					for i := 0; i < workers; i++ {
+						closeConnCh <- "close"
+					}
+
+					wg.Wait()
+
+					// all connections are now terminated: server should shut down aswell
+					sendTcpMsmtStopRequest(addr, port, callSize)
+
+					return
+				}
+			}
+		}
+	} else {
+		// error
+		fmt.Printf("\nTcpClient worker did not understand termination cmd: %s", *msmtTermination)
+		os.Exit(1)
 	}
 }
 
