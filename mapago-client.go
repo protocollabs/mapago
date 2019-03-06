@@ -262,6 +262,7 @@ func sendTcpTlsMsmtStopRequest(addr string, port int, callSize int) {
 }
 
 func sendQuicMsmtStartRequest(addr string, port int, callSize int) {
+	var sentStreamBytes map[string]*uint
 	var wg sync.WaitGroup
 	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("QuicMsmtStartReqConn", addr, port, callSize)
@@ -302,11 +303,21 @@ func sendQuicMsmtStartRequest(addr string, port int, callSize int) {
 	}
 
 	msmtIdStorage["quic-throughput1"] = repDataObj.Measurement_id
-	quicThroughput.NewQuicMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength)
-	manageQuicMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
+	
+	sentStreamBytes = make(map[string]*uint)
+	numStreams, _ := strconv.Atoi(msmtObj.Configuration.Worker)
+	for c := 1; c <= numStreams; c++ {
+		stream := "stream" + strconv.Itoa(c)
+		streamBytes := uint(0)
+		sentStreamBytes[stream] = &streamBytes
+	}
+
+	quicThroughput.NewQuicMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, sentStreamBytes, *msmtTotalBytes)
+
+	manageQuicMsmt(addr, port, callSize, &wg, closeConnCh, numWorker, sentStreamBytes)
 }
 
-func manageQuicMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
+func manageQuicMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int, sentStreamBytes map[string]*uint) {
 	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
 	/* TODO: nicht zeitgetriggert sonder daten getriggert
 	wenn letzte daten erhalten => close conns
@@ -471,6 +482,7 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 
 		// TODO: Invalidate data sent to test-sequencer or it will plot
 		case <-tDeadline.C:
+			fmt.Println("\nDeadline fired")
 			tDeadline.Stop()
 			for i := 0; i < workers; i++ {
 				closeConnCh <- "close"
@@ -485,7 +497,9 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 		default:
 			// reset timer as long a) msmtTotalBytes not reached OR b) msmt info reply changes
 			if doneSending(sentStreamBytes) == false || noUpdates(&lastSrvBytes, &currSrvBytes) == false {
+				// fmt.Println("\nReseting timeout")
 				tDeadline.Reset(time.Duration(*msmtDeadline) * time.Second)
+
 			}
 
 			if msmtFinished(&currSrvBytes) {
@@ -509,7 +523,7 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 // called by: manage(Tcp|Udp|Quic)Msmt
 func msmtFinished(currSrvBytes *uint) bool {
 	if *currSrvBytes >= *msmtTotalBytes {
-		fmt.Println("\nServer received everything from client: Msmt finished")
+		// debug fmt.Println("\nServer received everything from client: Msmt finished")
 		return true
 	}
 
@@ -528,6 +542,7 @@ func doneSending(sentStreamBytes map[string]*uint) bool {
 
 		if sumBytes >= *msmtTotalBytes {
 			done = true
+			// debug fmt.Println("\nEnough bytes sent")
 			break
 		}
 	}
