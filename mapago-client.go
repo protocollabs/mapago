@@ -395,6 +395,8 @@ func sendQuicMsmtInfoRequest(addr string, port int, callSize int, currSrvBytes *
 	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
 
 	msmtInfoRep := tcpObj.GetMeasurementInfo(reqJson)
+	*currSrvBytes = countCurrSrvBytes(msmtInfoRep)
+
 	prepareOutput(msmtInfoRep)
 }
 
