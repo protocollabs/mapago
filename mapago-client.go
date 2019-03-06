@@ -487,9 +487,33 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 
 			}
 
+			// Check if msmtFinished
+			if msmtFinished(currSrvBytes) {
+				tDeadline.Stop()
+
+				for i := 0; i < workers; i++ {
+					closeConnCh <- "close"
+				}
+
+				wg.Wait()
+
+				// all connections are now terminated: server should shut down aswell
+				sendTcpMsmtStopRequest(addr, port, callSize)
+				return
+			}
 		}
 	}
 }
+
+func msmtFinished(currSrvBytes *uint) bool {
+	if *currSrvBytes >= *msmtTotalBytes {
+		fmt.Println("\nServer received everything from client: Msmt finished")
+		return true
+	}
+
+	return false
+}
+
 
 func doneSending(sentStreamBytes map[string]*uint) bool {
 	var sumBytes uint
