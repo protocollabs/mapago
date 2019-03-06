@@ -5,34 +5,40 @@ import "net"
 import "os"
 import "strconv"
 import "fmt"
+import "math"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 func NewTcpMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataObj, wg *sync.WaitGroup, closeConnCh <-chan string, callSize int, sentStreamBytes map[string]*uint, msmtTotalBytes uint) {
 	lAddr := config.Listen_addr
 	serverPorts := shared.ConvStrToIntSlice(msmtStartRep.Measurement.Configuration.UsedPorts)
-	workers, err  := strconv.ParseUint(config.Worker, 10, 32)
+	workers, err := strconv.ParseUint(config.Worker, 10, 32)
 	if err != nil {
 		fmt.Printf("\n Parseuint error: %s", err)
 		os.Exit(1)
 	}
 
-	streamBytes := msmtTotalBytes / uint(workers) 
-	// debug fmt.Println("\nevery stream has to sent: ", streamBytes)
+	// we need to ceil if the byte count per stream is uneven => or we cant reach the threshold
+	StreamBytes := uint(math.Ceil(float64(msmtTotalBytes) / float64(workers)))
+
+	/* debug
+	fmt.Println("\nTotal bytes: ", msmtTotalBytes)
+	fmt.Println("\nbytes per stream: ", StreamBytes)
+	fmt.Println("\ntotal bytes over all streams", StreamBytes * uint(workers))
+	*/
 
 	for i, port := range serverPorts {
 		listen := lAddr + ":" + strconv.Itoa(port)
-		stream := "stream" + strconv.Itoa(i + 1)
+		stream := "stream" + strconv.Itoa(i+1)
 
 		wg.Add(1)
-		go tcpClientWorker(listen, wg, closeConnCh, uint(callSize), sentStreamBytes[stream], streamBytes)
+		go tcpClientWorker(listen, wg, closeConnCh, uint(callSize), sentStreamBytes[stream], StreamBytes)
 	}
 }
 
 func tcpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string, callSize uint, sentStreamBytes *uint, streamBytes uint) {
 	buf := make([]byte, callSize, callSize)
-	
-	// debug fmt.Println("\nbyte ctr is:", *streamByteCtr)
 
+	// debug fmt.Println("\nbyte ctr is:", *streamByteCtr)
 
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
@@ -53,9 +59,9 @@ func tcpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string,
 		default:
 			// sent as long as "stream threshold" not reached
 			// case a) send whole callSize
-			if streamBytes >= callSize  {
+			if streamBytes >= callSize {
 				bytes, err := conn.Write(buf)
-	
+
 				if err != nil {
 					fmt.Printf("\nWrite error: %s", err)
 					os.Exit(1)
@@ -65,12 +71,12 @@ func tcpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string,
 				streamBytes -= uint(bytes)
 				// update stream counter reference for mapago-client => determine when its done
 				*sentStreamBytes = *sentStreamBytes + uint(bytes)
-			
-			// case b) last bytes to send are not a "full" buffer
-			} else if (streamBytes < callSize && streamBytes > 0) {
+
+				// case b) last bytes to send are not a "full" buffer
+			} else if streamBytes < callSize && streamBytes > 0 {
 				buf = make([]byte, streamBytes, streamBytes)
 				bytes, err := conn.Write(buf)
-	
+
 				if err != nil {
 					fmt.Printf("\nWrite error: %s", err)
 					os.Exit(1)
@@ -81,7 +87,7 @@ func tcpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string,
 				// update stream counter reference for mapago-client => determine when its done
 				*sentStreamBytes = *sentStreamBytes + uint(bytes)
 
-			// case c): Default (streamBytes == 0 => enough sent) => Do nothing: Wait for channels
+				// case c): Default (streamBytes == 0 => enough sent) => Do nothing: Wait for channels
 			}
 		}
 	}

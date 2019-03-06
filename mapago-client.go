@@ -18,7 +18,7 @@ import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
-var BYTE_COUNT = 1 * uint(math.Pow(10,6))
+var BYTE_COUNT = 1 * uint(math.Pow(10, 6))
 var CONFIG_FILE = "conf.json"
 var MSMT_STREAMS = 1
 
@@ -31,7 +31,6 @@ var streams *int
 var serverAddr *string
 var bufLength *int
 var msmtUpdateTime *uint
-var msmtTermination *string
 var msmtTime *uint
 var msmtTotalBytes *uint
 var msmtDeadline *uint
@@ -49,7 +48,6 @@ func main() {
 	/* This should be removed when byte-termination for TCP-throughput works
 	and UDP and QUIC can be adapted
 	*/
-	msmtTermination = flag.String("termination", "time", "time, byte")
 	msmtTime = flag.Uint("msmt-time", 10, "complete msmt time in seconds")
 	msmtTotalBytes = flag.Uint("msmt-byte-count", BYTE_COUNT, "number of bytes sent by client")
 	msmtDeadline = flag.Uint("msmt-deadline", 300, "deadline when msmt is regarded as failed")
@@ -445,7 +443,6 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 
 	msmtIdStorage["tcp-throughput1"] = repDataObj.Measurement_id
 
-	// intialise 
 	sentStreamBytes = make(map[string]*uint)
 	numStreams, _ := strconv.Atoi(msmtObj.Configuration.Worker)
 	for c := 1; c <= numStreams; c++ {
@@ -462,33 +459,36 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int, sentStreamBytes map[string]*uint) {
 	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
 	tDeadline := time.NewTimer(time.Duration(*msmtDeadline) * time.Second)
-	// NOTE: should be zeroized by init
-	var currSrvBytes *uint
-	var lastSrvBytes *uint
+
+	var currSrvBytes uint
+	var lastSrvBytes uint
 
 	for {
 		select {
 		case <-tMsmtInfoReq.C:
-			// we need a pointer to the current measured bytes
-			sendTcpMsmtInfoRequest(addr, port, callSize, currSrvBytes)
+			sendTcpMsmtInfoRequest(addr, port, callSize, &currSrvBytes)
 			tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
-		
-		// TODO: Handle that
+
+		// TODO: Invalidate data sent to test-sequencer or it will plot
 		case <-tDeadline.C:
 			tDeadline.Stop()
-			// Deadline occured => measurement failed
+			for i := 0; i < workers; i++ {
+				closeConnCh <- "close"
+			}
+
+			wg.Wait()
+
+			// all connections are now terminated: server should shut down aswell
+			sendTcpMsmtStopRequest(addr, port, callSize)
+			return
 
 		default:
 			// reset timer as long a) msmtTotalBytes not reached OR b) msmt info reply changes
-			if (doneSending(sentStreamBytes) == false || noUpdates(lastSrvBytes, currSrvBytes) == false) {
-				// reset timer
+			if doneSending(sentStreamBytes) == false || noUpdates(&lastSrvBytes, &currSrvBytes) == false {
 				tDeadline.Reset(time.Duration(*msmtDeadline) * time.Second)
-				// WIP
-
 			}
 
-			// Check if msmtFinished
-			if msmtFinished(currSrvBytes) {
+			if msmtFinished(&currSrvBytes) {
 				tDeadline.Stop()
 
 				for i := 0; i < workers; i++ {
@@ -514,20 +514,15 @@ func msmtFinished(currSrvBytes *uint) bool {
 	return false
 }
 
-
 func doneSending(sentStreamBytes map[string]*uint) bool {
 	var sumBytes uint
 	done := false
-	
+
 	// iterate over streams
 	for _, val := range sentStreamBytes {
 		sumBytes += *val
 
 		if sumBytes >= *msmtTotalBytes {
-			// debug
-			fmt.Println("\nclient has sent enough bytes")
-			fmt.Println("\nsumClient bytes: ", sumBytes)
-			fmt.Println("\nmsmtTotalBytes bytes: ", *msmtTotalBytes)
 			done = true
 			break
 		}
@@ -542,10 +537,8 @@ func noUpdates(lastSrvBytes *uint, currSrvBytes *uint) bool {
 		return false
 	}
 
-	// no change => we dont need to adjust lastSrvBytes
 	return true
 }
-
 
 func countCurrSrvBytes(msmtInfoRep *shared.DataObj) uint {
 	var currSrvByte uint
@@ -558,11 +551,10 @@ func countCurrSrvBytes(msmtInfoRep *shared.DataObj) uint {
 			os.Exit(1)
 		}
 
-		currSrvByte += uint(bytes) 
+		currSrvByte += uint(bytes)
 	}
 	return currSrvByte
 }
-
 
 func sendTcpMsmtInfoRequest(addr string, port int, callSize int, currSrvBytes *uint) {
 	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtInfoReqConn", addr, port, callSize)
@@ -594,7 +586,6 @@ func sendTcpMsmtInfoRequest(addr string, port int, callSize int, currSrvBytes *u
 
 	prepareOutput(msmtInfoRep)
 }
-
 
 // this stops the TCP throughput measurement
 // underlying control channel is TCP based

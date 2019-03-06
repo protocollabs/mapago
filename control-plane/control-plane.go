@@ -261,7 +261,7 @@ func supportedModules() map[string]string {
 	supportedMods["tcp-goodput"] = ""
 	supportedMods["quic-goodput"] = ""
 	supportedMods["tcp-tls-goodput"] = ""
-	
+
 	// TODO: Bring that up to data
 	return supportedMods
 }
