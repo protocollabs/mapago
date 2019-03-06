@@ -18,7 +18,7 @@ import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 var CTRL_PORT = 64321
 var DEF_BUFFER_SIZE = 8096 * 8
-var BYTE_COUNT = 1 * uint(math.Pow(10,6))  
+var BYTE_COUNT = 1 * uint(math.Pow(10,6))
 var CONFIG_FILE = "conf.json"
 var MSMT_STREAMS = 1
 
@@ -33,7 +33,8 @@ var bufLength *int
 var msmtUpdateTime *uint
 var msmtTermination *string
 var msmtTime *uint
-var msmtByteCount *uint
+var msmtTotalBytes *uint
+var msmtDeadline *uint
 
 func main() {
 	ctrlProto := flag.String("ctrl-protocol", "tcp", "tcp, udp or udp_mcast")
@@ -45,9 +46,13 @@ func main() {
 	serverAddr = flag.String("addr", "127.0.0.1", "localhost or userdefined addr")
 	bufLength = flag.Int("buffer-length", DEF_BUFFER_SIZE, "msmt application buffer in bytes")
 	msmtUpdateTime = flag.Uint("update-interval", 2, "msmt update interval in seconds")
+	/* This should be removed when byte-termination for TCP-throughput works
+	and UDP and QUIC can be adapted
+	*/
 	msmtTermination = flag.String("termination", "time", "time, byte")
 	msmtTime = flag.Uint("msmt-time", 10, "complete msmt time in seconds")
-	msmtByteCount = flag.Uint("msmt-byte-count", BYTE_COUNT, "number of bytes when msmt is terminated")
+	msmtTotalBytes = flag.Uint("msmt-byte-count", BYTE_COUNT, "number of bytes sent by client")
+	msmtDeadline = flag.Uint("msmt-deadline", 300, "deadline when msmt is regarded as failed")
 
 	flag.Parse()
 
@@ -399,7 +404,7 @@ func sendQuicMsmtStopRequest(addr string, port int, callSize int) {
 // underlying control channel is TCP based
 func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	// bytes per stream
-	var msmtByteStorage map[string]*uint
+	var sentStreamBytes map[string]*uint
 	var wg sync.WaitGroup
 	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtStartReqConn", addr, port, callSize)
@@ -441,106 +446,62 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	msmtIdStorage["tcp-throughput1"] = repDataObj.Measurement_id
 
 	// intialise 
-	msmtByteStorage = make(map[string]*uint)
+	sentStreamBytes = make(map[string]*uint)
 	numStreams, _ := strconv.Atoi(msmtObj.Configuration.Worker)
 	for c := 1; c <= numStreams; c++ {
 		stream := "stream" + strconv.Itoa(c)
 		streamBytes := uint(0)
-		msmtByteStorage[stream] = &streamBytes
+		sentStreamBytes[stream] = &streamBytes
 	}
 
-	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, msmtByteStorage)
+	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, sentStreamBytes, *msmtTotalBytes)
 
-	manageTcpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker, msmtByteStorage)
+	manageTcpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker, sentStreamBytes)
 }
 
-func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int, byteStore map[string]*uint) {
+func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int, sentStreamBytes map[string]*uint) {
+	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
+	tDeadline := time.NewTimer(time.Duration(*msmtDeadline) * time.Second)
+
+	for {
+		select {
+		case <-tMsmtInfoReq.C:
+			sendTcpMsmtInfoRequest(addr, port, callSize)
+			tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
+		// TODO: Handle that
+		case <-tDeadline.C:
+			tDeadline.Stop()
+			// Deadline occured => measurement failed
+			// TODO: handle that
+
+		default:
+			// reset timer as long a) msmtTotalBytes not reached OR b) msmt info reply changes
+
+
+		}
+	}
+}
+
+func doneSending(sentStreamBytes map[string]*uint) bool {
+	var sumBytes uint
+	done := false
 	
-	// TODO source that into extra func
-	if *msmtTermination == "time" {
-		// debug fmt.Println("\n termination is: ", *msmtTermination)
+	// iterate over streams
+	for _, val := range sentStreamBytes {
+		sumBytes += *val
 
-		tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
-		/* TODO: nicht zeitgetriggert sonder daten getriggert
-		wenn letzte daten erhalten => close conns
-		würde Probleme geben bei starker packet verlustrate
-		wir sagen 10s und während dessen empfangen wir nichts
-		dann bauen wir schon verbindung ab => client ist immer noch im retransmit
-		*/
-		tMsmtStopReq := time.NewTimer(time.Duration(*msmtTime) * time.Second)
-
-		for {
-			select {
-			case <-tMsmtInfoReq.C:
-				sendTcpMsmtInfoRequest(addr, port, callSize)
-				tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
-
-			case <-tMsmtStopReq.C:
-				tMsmtInfoReq.Stop()
-
-				for i := 0; i < workers; i++ {
-					closeConnCh <- "close"
-				}
-
-				wg.Wait()
-
-				// all connections are now terminated: server should shut down aswell
-				sendTcpMsmtStopRequest(addr, port, callSize)
-
-				return
-			}
+		if sumBytes >= *msmtTotalBytes {
+			// debug
+			fmt.Println("\nclient has sent enough bytes")
+			fmt.Println("\nsumClient bytes: ", sumBytes)
+			fmt.Println("\nmsmtTotalBytes bytes: ", *msmtTotalBytes)
+			done = true
+			break
 		}
-
-	} else if *msmtTermination == "byte" {
-		// handle byte termination
-		var sumBytes uint
-		stopMsmt := false
-		// debug fmt.Println("\n termination is: ", *msmtTermination)
-		
-		tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
-
-		for {
-			select {
-			case <-tMsmtInfoReq.C:
-				sendTcpMsmtInfoRequest(addr, port, callSize)
-				tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
-
-			default:
-				// sweep over all byte store elements
-				// every element is only called once
-				for _, val := range byteStore {
-					sumBytes += *val
-					// debug fmt.Println("\nSum Bytes: ", sumBytes)
-
-					if sumBytes >= *msmtByteCount {
-						// debug fmt.Println("\nEnought bytes sent")
-						stopMsmt = true
-						break
-					}
-				}
-
-				if stopMsmt == true {
-					tMsmtInfoReq.Stop()
-
-					for i := 0; i < workers; i++ {
-						closeConnCh <- "close"
-					}
-
-					wg.Wait()
-
-					// all connections are now terminated: server should shut down aswell
-					sendTcpMsmtStopRequest(addr, port, callSize)
-
-					return
-				}
-			}
-		}
-	} else {
-		// error
-		fmt.Printf("\nTcpClient worker did not understand termination cmd: %s", *msmtTermination)
-		os.Exit(1)
 	}
+	return done
 }
+
 
 func sendTcpMsmtInfoRequest(addr string, port int, callSize int) {
 	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtInfoReqConn", addr, port, callSize)
@@ -568,6 +529,9 @@ func sendTcpMsmtInfoRequest(addr string, port int, callSize int) {
 	// debug fmt.Printf("\nmsmt stop request JSON is: % s", reqJson)
 
 	msmtInfoRep := tcpObj.GetMeasurementInfo(reqJson)
+
+	// check the msmt info reply 
+
 	prepareOutput(msmtInfoRep)
 }
 
