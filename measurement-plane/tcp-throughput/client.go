@@ -20,9 +20,11 @@ func NewTcpMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataO
 	// we need to ceil if the byte count per stream is uneven => or we cant reach the threshold
 	StreamBytes := uint(math.Ceil(float64(msmtTotalBytes) / float64(workers)))
 
-	fmt.Println("\nTotal bytes: ", msmtTotalBytes)
-	fmt.Println("\nbytes per stream: ", StreamBytes)
-	fmt.Println("\ntotal bytes over all streams", StreamBytes * uint(workers))
+	/*
+		fmt.Println("\nTotal bytes: ", msmtTotalBytes)
+		fmt.Println("\nbytes per stream: ", StreamBytes)
+		fmt.Println("\ntotal bytes over all streams", StreamBytes * uint(workers))
+	*/
 
 	for i, port := range serverPorts {
 		listen := lAddr + ":" + strconv.Itoa(port)

@@ -303,7 +303,7 @@ func sendQuicMsmtStartRequest(addr string, port int, callSize int) {
 	}
 
 	msmtIdStorage["quic-throughput1"] = repDataObj.Measurement_id
-	
+
 	sentStreamBytes = make(map[string]*uint)
 	numStreams, _ := strconv.Atoi(msmtObj.Configuration.Worker)
 	for c := 1; c <= numStreams; c++ {
@@ -666,6 +666,7 @@ func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
 // this starts the UDP throughput measurement
 // underlying control channel is TCP based
 func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
+	var sentStreamBytes map[string]*uint
 	var wg sync.WaitGroup
 	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("UdpThroughputMsmtConn", addr, port, callSize)
@@ -705,12 +706,20 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 
 	msmtIdStorage["udp-throughput1"] = repDataObj.Measurement_id
 
-	udpThroughput.NewUdpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength)
+	sentStreamBytes = make(map[string]*uint)
+	numStreams, _ := strconv.Atoi(msmtObj.Configuration.Worker)
+	for c := 1; c <= numStreams; c++ {
+		stream := "stream" + strconv.Itoa(c)
+		streamBytes := uint(0)
+		sentStreamBytes[stream] = &streamBytes
+	}
 
-	manageUdpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
+	udpThroughput.NewUdpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, sentStreamBytes, *msmtTotalBytes)
+
+	manageUdpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker, sentStreamBytes)
 }
 
-func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
+func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int, sentStreamBytes map[string]*uint) {
 	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
 	/* TODO: nicht zeitgetriggert sonder daten getriggert
 	wenn letzte daten erhalten => close conns
