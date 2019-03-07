@@ -152,8 +152,7 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 	message := make([]byte, quicMsmt.callSize, quicMsmt.callSize)
 
 	for {
-		bytes, err := io.ReadFull(quicStream, message)
-
+		bytes, err := quicStream.Read(message)
 		if err != nil {
 			if err == io.EOF {
 				break

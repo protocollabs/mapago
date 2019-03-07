@@ -21,6 +21,12 @@ func NewQuicMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.Data
 	// we need to ceil if the byte count per stream is uneven => or we cant reach the threshold
 	StreamBytes := uint(math.Ceil(float64(msmtTotalBytes) / float64(workers)))
 
+	/*
+	fmt.Println("\nTotal bytes: ", msmtTotalBytes)
+	fmt.Println("\nbytes per stream: ", StreamBytes)
+	fmt.Println("\ntotal bytes over all streams", StreamBytes * uint(workers))
+	*/ 
+
 	for i, port := range serverPorts {
 		listen := lAddr + ":" + strconv.Itoa(port)
 		stream := "stream" + strconv.Itoa(i+1)
@@ -88,7 +94,7 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 				*sentStreamBytes = *sentStreamBytes + uint(bytes)
 
 				// case c): Default (streamBytes == 0 => enough sent) => Do nothing: Wait for channels
-			}
+			} 
 		}
 	}
 }
