@@ -721,12 +721,58 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 
 func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int, sentStreamBytes map[string]*uint) {
 	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
-	/* TODO: nicht zeitgetriggert sonder daten getriggert
-	wenn letzte daten erhalten => close conns
-	würde Probleme geben bei starker packet verlustrate
-	wir sagen 10s und während dessen empfangen wir nichts
-	dann bauen wir schon verbindung ab => client ist immer noch im retransmit
-	*/
+	tDeadline := time.NewTimer(time.Duration(*msmtDeadline) * time.Second)
+
+	var currSrvBytes uint
+	var lastSrvBytes uint
+
+	for {
+		select {
+		case <-tMsmtInfoReq.C:
+			sendUdpMsmtInfoRequest(addr, port, callSize, &currSrvBytes)
+			tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
+
+		// TODO: Invalidate data sent to test-sequencer or it will plot
+		case <-tDeadline.C:
+			fmt.Println("\nDeadline fired")
+			tDeadline.Stop()
+			for i := 0; i < workers; i++ {
+				closeConnCh <- "close"
+			}
+
+			wg.Wait()
+
+			// all connections are now terminated: server should shut down aswell
+			sendUdpMsmtStopRequest(addr, port, callSize)
+			return
+
+		default:
+			// reset timer as long a) msmtTotalBytes not reached OR b) msmt info reply changes
+			if doneSending(sentStreamBytes) == false || noUpdates(&lastSrvBytes, &currSrvBytes) == false {
+				// fmt.Println("\nReseting timeout")
+				tDeadline.Reset(time.Duration(*msmtDeadline) * time.Second)
+
+			}
+
+			if msmtFinished(&currSrvBytes) {
+				tDeadline.Stop()
+
+				for i := 0; i < workers; i++ {
+					closeConnCh <- "close"
+				}
+
+				wg.Wait()
+
+				// all connections are now terminated: server should shut down aswell
+				sendUdpMsmtStopRequest(addr, port, callSize)
+				return
+			}
+		}
+	}
+	
+
+
+	/*
 	tMsmtStopReq := time.NewTimer(time.Duration(*msmtTime) * time.Second)
 
 	for {
@@ -753,10 +799,10 @@ func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 			return
 		}
 	}
-
+	*/
 }
 
-func sendUdpMsmtInfoRequest(addr string, port int, callSize int) {
+func sendUdpMsmtInfoRequest(addr string, port int, callSize int, currSrvBytes *uint) {
 	tcpObj := clientProtos.NewTcpObj("UdpThroughputMsmtInfoReqConn", addr, port, callSize)
 
 	reqDataObj := new(shared.DataObj)
@@ -780,6 +826,7 @@ func sendUdpMsmtInfoRequest(addr string, port int, callSize int) {
 
 	reqJson := shared.ConvDataStructToJson(reqDataObj)
 	msmtInfoRep := tcpObj.GetMeasurementInfo(reqJson)
+	*currSrvBytes = countCurrSrvBytes(msmtInfoRep)
 	prepareOutput(msmtInfoRep)
 }
 
