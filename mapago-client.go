@@ -36,10 +36,10 @@ var msmtTotalBytes *uint
 var msmtDeadline *uint
 
 func main() {
-	ctrlProto := flag.String("ctrl-protocol", "tcp", "tcp, udp or udp_mcast")
-	ctrlAddr := flag.String("ctrl-addr", "127.0.0.1", "localhost or userdefined addr")
-	port := flag.Int("ctrl-port", CTRL_PORT, "port for interacting with control channel")
-	callSize := flag.Int("ctrl-buffer-length", DEF_BUFFER_SIZE, "control application buffer in bytes")
+	ctrlProto := flag.String("control-protocol", "tcp", "tcp, udp or udp_mcast")
+	ctrlAddr := flag.String("control-addr", "127.0.0.1", "localhost or userdefined addr")
+	port := flag.Int("control-port", CTRL_PORT, "port for interacting with control channel")
+	callSize := flag.Int("control-buffer-length", DEF_BUFFER_SIZE, "control application buffer in bytes")
 	module := flag.String("module", "tcp-throughput", "tcp-throughput, tcp-tls-throughput, udp-throughput, quic-throughput")
 	streams = flag.Int("streams", MSMT_STREAMS, "setting number of streams")
 	serverAddr = flag.String("addr", "127.0.0.1", "localhost or userdefined addr")
@@ -48,9 +48,9 @@ func main() {
 	/* This should be removed when byte-termination for TCP-throughput works
 	and UDP and QUIC can be adapted
 	*/
-	msmtTime = flag.Uint("msmt-time", 10, "complete msmt time in seconds")
-	msmtTotalBytes = flag.Uint("msmt-byte-count", BYTE_COUNT, "number of bytes sent by client")
-	msmtDeadline = flag.Uint("msmt-deadline", 300, "deadline when msmt is regarded as failed")
+	msmtTime = flag.Uint("time", 10, "complete msmt time in seconds")
+	msmtTotalBytes = flag.Uint("bytes", BYTE_COUNT, "number of bytes sent by client")
+	msmtDeadline = flag.Uint("deadline", 300, "deadline when msmt is regarded as failed")
 
 	flag.Parse()
 
@@ -505,6 +505,8 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 	}
 }
 
+// purpose: checks if server received all bytes sent by client
+// called by: manage(Tcp|Udp|Quic)Msmt
 func msmtFinished(currSrvBytes *uint) bool {
 	if *currSrvBytes >= *msmtTotalBytes {
 		fmt.Println("\nServer received everything from client: Msmt finished")
@@ -514,6 +516,8 @@ func msmtFinished(currSrvBytes *uint) bool {
 	return false
 }
 
+// purpose: checks if sum of all "stream bytes" (i.e. bytes sent per stream) matches the parameter msmtTotalBytes => does clt sent all bytes?
+// called by: manage(Tcp|Udp|Quic)Msmt
 func doneSending(sentStreamBytes map[string]*uint) bool {
 	var sumBytes uint
 	done := false
@@ -530,6 +534,8 @@ func doneSending(sentStreamBytes map[string]*uint) bool {
 	return done
 }
 
+// purpose: compare results from MsmtInfoRep => does byte count change? => influence deadline timer
+// called by: manage(Tcp|Udp|Quic)Msmt
 func noUpdates(lastSrvBytes *uint, currSrvBytes *uint) bool {
 	if *currSrvBytes > *lastSrvBytes {
 		// "new" threshold
@@ -540,6 +546,8 @@ func noUpdates(lastSrvBytes *uint, currSrvBytes *uint) bool {
 	return true
 }
 
+// purpose: counts bytes of all streams received by MsmstInfoRep => used for evaluation expectation value
+// called by: send(Tcp|Udp|Quic)MsmtInfoRequest
 func countCurrSrvBytes(msmtInfoRep *shared.DataObj) uint {
 	var currSrvByte uint
 
