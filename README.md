@@ -12,9 +12,12 @@ Execute the following installation steps to use Mapago:
 ```
 export GOPATH=$HOME/go
 export GOBIN=$HOME/go/bin
+export GOROOT=/usr/local/go
+export PATH=$PATH:$GOROOT/bin
+go get -u -d github.com/lucas-clemente/quic-go
 go get github.com/google/uuid
 go get github.com/protocollabs/mapago
-cd $GOPATH/github.com/protocollabs/mapago
+cd $GOPATH/src/github.com/protocollabs/mapago
 make install
 mapago-server
 mapago-client -ctrl-addr localhost -ctrl-protocol tcp -msmt-type tcp-throughput
