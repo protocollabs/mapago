@@ -332,7 +332,7 @@ func manageQuicMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clo
 
 		// TODO: Invalidate data sent to test-sequencer or it will plot
 		case <-tDeadline.C:
-			fmt.Println("\nDeadline fired")
+			// debug fmt.Println("\nDeadline fired")
 			tDeadline.Stop()
 			for i := 0; i < workers; i++ {
 				closeConnCh <- "close"
@@ -504,7 +504,7 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 
 		// TODO: Invalidate data sent to test-sequencer or it will plot
 		case <-tDeadline.C:
-			fmt.Println("\nDeadline fired")
+			// debug fmt.Println("\nDeadline fired")
 			tDeadline.Stop()
 			for i := 0; i < workers; i++ {
 				closeConnCh <- "close"
@@ -564,7 +564,7 @@ func doneSending(sentStreamBytes map[string]*uint) bool {
 
 		if sumBytes >= *msmtTotalBytes {
 			done = true
-			// debug fmt.Println("\nEnough bytes sent")
+			// debug fmt.Println("\nEnough bytes sent: ", sumBytes)
 			break
 		}
 	}
@@ -734,7 +734,7 @@ func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 
 		// TODO: Invalidate data sent to test-sequencer or it will plot
 		case <-tDeadline.C:
-			fmt.Println("\nDeadline fired")
+			// debug fmt.Println("\nDeadline fired")
 			tDeadline.Stop()
 			for i := 0; i < workers; i++ {
 				closeConnCh <- "close"
@@ -769,37 +769,6 @@ func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 			}
 		}
 	}
-	
-
-
-	/*
-	tMsmtStopReq := time.NewTimer(time.Duration(*msmtTime) * time.Second)
-
-	for {
-		select {
-		case <-tMsmtInfoReq.C:
-			sendUdpMsmtInfoRequest(addr, port, callSize)
-
-			tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
-
-		case <-tMsmtStopReq.C:
-			tMsmtInfoReq.Stop()
-
-			// NOTED: optional we could first send a msmt stop request
-			// wait until the server sockets are down
-			// and then close our own
-			// sendUdpMsmtStopRequest(addr, port, callSize)
-
-			for i := 0; i < workers; i++ {
-				closeConnCh <- "close"
-			}
-
-			wg.Wait()
-			sendUdpMsmtStopRequest(addr, port, callSize)
-			return
-		}
-	}
-	*/
 }
 
 func sendUdpMsmtInfoRequest(addr string, port int, callSize int, currSrvBytes *uint) {
