@@ -125,6 +125,7 @@ func runTcpCtrlClient(addr string, port int, callSize int, module string) {
 }
 
 func sendTcpTlsMsmtStartRequest(addr string, port int, callSize int) {
+	var sentStreamBytes map[string]*uint
 	var wg sync.WaitGroup
 	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("TcpTlsMsmtStartReqConn", addr, port, callSize)
@@ -165,7 +166,17 @@ func sendTcpTlsMsmtStartRequest(addr string, port int, callSize int) {
 	}
 
 	msmtIdStorage["tcp-tls-throughput1"] = repDataObj.Measurement_id
-	tcpTlsThroughput.NewTcpTlsMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength)
+
+	sentStreamBytes = make(map[string]*uint)
+	numStreams, _ := strconv.Atoi(msmtObj.Configuration.Worker)
+	for c := 1; c <= numStreams; c++ {
+		stream := "stream" + strconv.Itoa(c)
+		streamBytes := uint(0)
+		sentStreamBytes[stream] = &streamBytes
+	}
+
+	tcpTlsThroughput.NewTcpTlsMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, sentStreamBytes, *msmtTotalBytes)
+
 	manageTcpTlsMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
 }
 
