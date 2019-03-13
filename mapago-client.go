@@ -31,7 +31,6 @@ var streams *int
 var serverAddr *string
 var bufLength *int
 var msmtUpdateTime *uint
-var msmtTime *uint
 var msmtTotalBytes *uint
 var msmtDeadline *uint
 
@@ -45,10 +44,6 @@ func main() {
 	serverAddr = flag.String("addr", "127.0.0.1", "localhost or userdefined addr")
 	bufLength = flag.Int("buffer-length", DEF_BUFFER_SIZE, "msmt application buffer in bytes")
 	msmtUpdateTime = flag.Uint("update-interval", 2, "msmt update interval in seconds")
-	/* This should be removed when byte-termination for TCP-throughput works
-	and UDP and QUIC can be adapted
-	*/
-	msmtTime = flag.Uint("time", 10, "complete msmt time in seconds")
 	msmtTotalBytes = flag.Uint("bytes", BYTE_COUNT, "number of bytes sent by client")
 	msmtDeadline = flag.Uint("deadline", 300, "deadline when msmt is regarded as failed")
 
@@ -66,7 +61,6 @@ func main() {
 		fmt.Println("Msmt-Addr: ", *serverAddr)
 		fmt.Println("Msmt-CallSize: ", *bufLength)
 		fmt.Println("Update-Interval: ", *msmtUpdateTime)
-		fmt.Println("Msmt-time: ", *msmtTime)
 	*/
 
 	if *ctrlProto == "tcp" {
@@ -204,7 +198,7 @@ func manageTcpTlsMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, c
 			wg.Wait()
 
 			// all connections are now terminated: server should shut down aswell
-			sendTcpTlsMsmtStopRequest(addr, port, callSize)			
+			sendTcpTlsMsmtStopRequest(addr, port, callSize)
 			return
 
 		default:
@@ -224,7 +218,7 @@ func manageTcpTlsMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, c
 				wg.Wait()
 
 				// all connections are now terminated: server should shut down aswell
-				sendTcpTlsMsmtStopRequest(addr, port, callSize)			
+				sendTcpTlsMsmtStopRequest(addr, port, callSize)
 				return
 			}
 		}

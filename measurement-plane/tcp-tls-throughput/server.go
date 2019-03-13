@@ -83,7 +83,7 @@ func NewTcpTlsThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- sha
 		}
 	}
 
-	fmt.Println("\n\nPorts used by TCP module: ", tcpMsmt.usedPorts)
+	fmt.Println("\n\nPorts used by TCP TLS module: ", tcpMsmt.usedPorts)
 
 	msmtReply := new(shared.ChMsmt2Ctrl)
 	msmtReply.Status = "ok"

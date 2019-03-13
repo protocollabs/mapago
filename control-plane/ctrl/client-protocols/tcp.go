@@ -58,13 +58,13 @@ func (tcp *TcpObj) StartDiscovery(jsonData []byte) *shared.DataObj {
 	for {
 		_, err := tcpConnObj.connSock.Write(jsonData)
 		if err != nil {
-			fmt.Printf("Cannot send!!! %s\n", err)
+			fmt.Printf("Discovery: Cannot send!!! %s\n", err)
 			os.Exit(1)
 		}
 
 		bytes, err := tcpConnObj.connSock.Read(buf)
 		if err != nil {
-			fmt.Printf("Cannot read!!!! msg: %s\n", err)
+			fmt.Printf("Discovery: Cannot read!!!! msg: %s\n", err)
 			os.Exit(1)
 		}
 
@@ -100,13 +100,13 @@ func (tcp *TcpObj) StartMeasurement(jsonData []byte) *shared.DataObj {
 	for {
 		_, err := tcpConnObj.connSock.Write(jsonData)
 		if err != nil {
-			fmt.Printf("Cannot send!!! %s\n", err)
+			fmt.Printf("Msmt Start: Cannot send!!! %s\n", err)
 			os.Exit(1)
 		}
 
 		bytes, err := tcpConnObj.connSock.Read(buf)
 		if err != nil {
-			fmt.Printf("Cannot read!!!! msg: %s\n", err)
+			fmt.Printf("Msmt Start: Cannot read!!!! msg: %s\n", err)
 			os.Exit(1)
 		}
 
@@ -142,14 +142,14 @@ func (tcp *TcpObj) StopMeasurement(jsonData []byte) *shared.DataObj {
 	for {
 		_, err := tcpConnObj.connSock.Write(jsonData)
 		if err != nil {
-			fmt.Printf("Cannot send!!! %s\n", err)
+			fmt.Printf("Msmt Stop: Cannot send!!! %s\n", err)
 			os.Exit(1)
 		}
 
 		// NOTE: We will block here until we get a msmst_stop_reply
 		bytes, err := tcpConnObj.connSock.Read(buf)
 		if err != nil {
-			fmt.Printf("Cannot read!!!! msg: %s\n", err)
+			fmt.Printf("Msmt Stop: Cannot read!!!! msg: %s\n", err)
 			os.Exit(1)
 		}
 
@@ -184,14 +184,14 @@ func (tcp *TcpObj) GetMeasurementInfo(jsonData []byte) *shared.DataObj {
 	for {
 		_, err := tcpConnObj.connSock.Write(jsonData)
 		if err != nil {
-			fmt.Printf("Cannot send!!! %s\n", err)
+			fmt.Printf("Msmt Info: Cannot send!!! %s\n", err)
 			os.Exit(1)
 		}
 
 		// NOTE: We will block here until we get a msmst_info_reply
 		bytes, err := tcpConnObj.connSock.Read(buf)
 		if err != nil {
-			fmt.Printf("Cannot read!!!! msg: %s\n", err)
+			fmt.Printf("Msmt Info: Cannot read!!!! msg: %s\n", err)
 			os.Exit(1)
 		}
 
