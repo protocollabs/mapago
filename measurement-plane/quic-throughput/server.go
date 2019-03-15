@@ -154,6 +154,8 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 	for {
 		bytes, err := quicStream.Read(message)
 		if err != nil {
+			fmt.Printf("\nerror while reading: %s", err.Error())
+
 			if err == io.EOF {
 				break
 			}
