@@ -137,7 +137,7 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 
 	sess, err := listener.Accept()
 	if err != nil {
-		fmt.Printf("Cannot accept: %s\n", err)
+		fmt.Printf("Accept() err is: %s\n", err)
 		os.Exit(1)
 	}
 
@@ -146,7 +146,8 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 
 	quicStream, err := sess.AcceptStream()
 	if err != nil {
-		panic("acceptStream")
+		fmt.Printf("AcceptStream() err is: %s\n", err)
+		os.Exit(1)
 	}
 
 	message := make([]byte, quicMsmt.callSize, quicMsmt.callSize)
@@ -154,21 +155,33 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 	for {
 		bytes, err := quicStream.Read(message)
 		if err != nil {
-			fmt.Printf("\nerror while reading: %s", err.Error())
+			// debug fmt.Printf("Read() err is: %s\n", err)
 
 			if err == io.EOF {
 				break
 			}
 
-			// check for qerr.QuicError
-			errStr := strings.TrimRight(err.Error(), ": ")
-			if errStr == "PeerGoingAway" {
-				break
+			errStr := strings.TrimSpace(err.Error())
+			if errStr == "NO_ERROR" {
+				// ok quic-go bug there...just continue
+				continue
 			}
 
+			if strings.Contains(errStr, ":") {
+				index := strings.IndexByte(err.Error(), ':')
+				errStr = strings.TrimSpace(errStr[index+1:])
+
+				if errStr == "No recent network activity" {
+					break
+				}
+				// no additional cases atm
+			}
+
+			fmt.Println("\nUnknown error! exiting!")
 			os.Exit(1)
 		}
 
+		// debug fmt.Println("\nArrived right before accounting!")
 		msmtInfoPtr.Bytes += uint64(bytes)
 
 		if fTsExists == false {
