@@ -6,6 +6,7 @@ import "strconv"
 import "fmt"
 import "crypto/tls"
 import "math"
+import "strings"
 import quic "github.com/lucas-clemente/quic-go"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
@@ -20,7 +21,6 @@ func NewQuicMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.Data
 
 	// we need to ceil if the byte count per stream is uneven => or we cant reach the threshold
 	StreamBytes := uint(math.Ceil(float64(msmtTotalBytes) / float64(workers)))
-
 	/*
 		fmt.Println("\nTotal bytes: ", msmtTotalBytes)
 		fmt.Println("\nbytes per stream: ", StreamBytes)
@@ -43,12 +43,14 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 
 	session, err := quic.DialAddr(addr, &tlsConf, nil)
 	if err != nil {
-		panic("dial")
+		fmt.Println("\nDialAddr() err is: ", err)
+		os.Exit(1)
 	}
 
 	stream, err := session.OpenStreamSync()
 	if err != nil {
-		panic("openStream")
+		fmt.Println("\nOpenStreamSync() err is: ", err)
+		os.Exit(1)
 	}
 
 	for {
@@ -70,12 +72,28 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 
 				if err != nil {
 					fmt.Printf("\nWrite error: %s", err)
+
+					errStr := strings.TrimSpace(err.Error())
+					if errStr == "NO_ERROR" {
+						continue
+					}
+
+					if strings.Contains(errStr, ":") {
+						index := strings.IndexByte(err.Error(), ':')
+						errStr = strings.TrimSpace(errStr[index+1:])
+
+						if errStr == "No recent network activity" {
+							// ok serious error we have to leave our "write-for-loop"
+							session.Close()
+							wg.Done()
+							return
+						}
+					}
+
 					os.Exit(1)
 				}
 
-				// update per stream counter
 				streamBytes -= uint(bytes)
-				// update stream counter reference for mapago-client => determine when its done
 				*sentStreamBytes = *sentStreamBytes + uint(bytes)
 
 				// case b) last bytes to send are not a "full" buffer
@@ -85,12 +103,29 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 
 				if err != nil {
 					fmt.Printf("\nWrite error: %s", err)
+
+					// add here
+					errStr := strings.TrimSpace(err.Error())
+					if errStr == "NO_ERROR" {
+						continue
+					}
+
+					if strings.Contains(errStr, ":") {
+						index := strings.IndexByte(err.Error(), ':')
+						errStr = strings.TrimSpace(errStr[index+1:])
+
+						if errStr == "No recent network activity" {
+							// ok serious error we have to leave our "write-for-loop"
+							session.Close()
+							wg.Done()
+							return
+						}
+					}
+
 					os.Exit(1)
 				}
 
-				// update per stream counter
 				streamBytes -= uint(bytes)
-				// update stream counter reference for mapago-client => determine when its done
 				*sentStreamBytes = *sentStreamBytes + uint(bytes)
 
 				// case c): Default (streamBytes == 0 => enough sent) => Do nothing: Wait for channels
