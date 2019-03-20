@@ -10,7 +10,7 @@ import "strings"
 import quic "github.com/lucas-clemente/quic-go"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
-func NewQuicMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataObj, wg *sync.WaitGroup, closeConnCh <-chan string, callSize int, sentStreamBytes map[string]*uint, msmtTotalBytes uint) {
+func NewQuicMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataObj, wg *sync.WaitGroup, closeConnCh <-chan string, callSize int, msmtTotalBytes uint) {
 	lAddr := config.Listen_addr
 	serverPorts := shared.ConvStrToIntSlice(msmtStartRep.Measurement.Configuration.UsedPorts)
 	workers, err := strconv.ParseUint(config.Worker, 10, 32)
@@ -29,26 +29,28 @@ func NewQuicMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.Data
 
 	for i, port := range serverPorts {
 		listen := lAddr + ":" + strconv.Itoa(port)
-		stream := "stream" + strconv.Itoa(i+1)
-
 		wg.Add(1)
-		go quicClientWorker(listen, wg, closeConnCh, uint(callSize), sentStreamBytes[stream], StreamBytes)
+		// i is for debugging
+		go quicClientWorker(listen, wg, closeConnCh, uint(callSize), StreamBytes, i)
 	}
 }
 
-func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string, callSize uint, sentStreamBytes *uint, streamBytes uint) {
+func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string, callSize uint, streamBytes uint, streamIndex int) {
 	buf := make([]byte, callSize, callSize)
 
 	tlsConf := tls.Config{InsecureSkipVerify: true}
 
 	session, err := quic.DialAddr(addr, &tlsConf, nil)
 	if err != nil {
+		// Catch: handshake timeout
+		fmt.Println("\nStream: ", streamIndex)
 		fmt.Println("\nDialAddr() err is: ", err)
-		os.Exit(1)
+		return
 	}
 
 	stream, err := session.OpenStreamSync()
 	if err != nil {
+		fmt.Println("\nStream: ", streamIndex)
 		fmt.Println("\nOpenStreamSync() err is: ", err)
 		os.Exit(1)
 	}
@@ -65,8 +67,6 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 				os.Exit(1)
 			}
 		default:
-			// sent as long as "stream threshold" not reached
-			// case a) send whole callSize
 			if streamBytes >= callSize {
 				bytes, err := stream.Write(buf)
 
@@ -83,6 +83,7 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 						errStr = strings.TrimSpace(errStr[index+1:])
 
 						if errStr == "No recent network activity" {
+							fmt.Println("\nStream: ", streamIndex)
 							// ok serious error we have to leave our "write-for-loop"
 							session.Close()
 							wg.Done()
@@ -94,7 +95,6 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 				}
 
 				streamBytes -= uint(bytes)
-				*sentStreamBytes = *sentStreamBytes + uint(bytes)
 
 				// case b) last bytes to send are not a "full" buffer
 			} else if streamBytes < callSize && streamBytes > 0 {
@@ -115,6 +115,7 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 						errStr = strings.TrimSpace(errStr[index+1:])
 
 						if errStr == "No recent network activity" {
+							fmt.Println("\nStream: ", streamIndex)
 							// ok serious error we have to leave our "write-for-loop"
 							session.Close()
 							wg.Done()
@@ -126,10 +127,10 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 				}
 
 				streamBytes -= uint(bytes)
-				*sentStreamBytes = *sentStreamBytes + uint(bytes)
 
 				// case c): Default (streamBytes == 0 => enough sent) => Do nothing: Wait for channels
 			}
 		}
 	}
+
 }

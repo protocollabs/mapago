@@ -119,7 +119,6 @@ func runTcpCtrlClient(addr string, port int, callSize int, module string) {
 }
 
 func sendTcpTlsMsmtStartRequest(addr string, port int, callSize int) {
-	var sentStreamBytes map[string]*uint
 	var wg sync.WaitGroup
 	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("TcpTlsMsmtStartReqConn", addr, port, callSize)
@@ -160,21 +159,12 @@ func sendTcpTlsMsmtStartRequest(addr string, port int, callSize int) {
 	}
 
 	msmtIdStorage["tcp-tls-throughput1"] = repDataObj.Measurement_id
+	tcpTlsThroughput.NewTcpTlsMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, *msmtTotalBytes)
 
-	sentStreamBytes = make(map[string]*uint)
-	numStreams, _ := strconv.Atoi(msmtObj.Configuration.Worker)
-	for c := 1; c <= numStreams; c++ {
-		stream := "stream" + strconv.Itoa(c)
-		streamBytes := uint(0)
-		sentStreamBytes[stream] = &streamBytes
-	}
-
-	tcpTlsThroughput.NewTcpTlsMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, sentStreamBytes, *msmtTotalBytes)
-
-	manageTcpTlsMsmt(addr, port, callSize, &wg, closeConnCh, numWorker, sentStreamBytes)
+	manageTcpTlsMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
 }
 
-func manageTcpTlsMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int, sentStreamBytes map[string]*uint) {
+func manageTcpTlsMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
 	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
 	tDeadline := time.NewTimer(time.Duration(*msmtDeadline) * time.Second)
 
@@ -203,7 +193,7 @@ func manageTcpTlsMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, c
 
 		default:
 			// reset timer as long a) msmtTotalBytes not reached OR b) msmt info reply changes
-			if doneSending(sentStreamBytes) == false || noUpdates(&lastSrvBytes, &currSrvBytes) == false {
+			if noUpdates(&lastSrvBytes, &currSrvBytes) == false {
 				// fmt.Println("\nReseting timeout")
 				tDeadline.Reset(time.Duration(*msmtDeadline) * time.Second)
 			}
@@ -288,7 +278,6 @@ func sendTcpTlsMsmtStopRequest(addr string, port int, callSize int) {
 }
 
 func sendQuicMsmtStartRequest(addr string, port int, callSize int) {
-	var sentStreamBytes map[string]*uint
 	var wg sync.WaitGroup
 	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("QuicMsmtStartReqConn", addr, port, callSize)
@@ -329,21 +318,12 @@ func sendQuicMsmtStartRequest(addr string, port int, callSize int) {
 	}
 
 	msmtIdStorage["quic-throughput1"] = repDataObj.Measurement_id
+	quicThroughput.NewQuicMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, *msmtTotalBytes)
 
-	sentStreamBytes = make(map[string]*uint)
-	numStreams, _ := strconv.Atoi(msmtObj.Configuration.Worker)
-	for c := 1; c <= numStreams; c++ {
-		stream := "stream" + strconv.Itoa(c)
-		streamBytes := uint(0)
-		sentStreamBytes[stream] = &streamBytes
-	}
-
-	quicThroughput.NewQuicMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, sentStreamBytes, *msmtTotalBytes)
-
-	manageQuicMsmt(addr, port, callSize, &wg, closeConnCh, numWorker, sentStreamBytes)
+	manageQuicMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
 }
 
-func manageQuicMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int, sentStreamBytes map[string]*uint) {
+func manageQuicMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
 	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
 	tDeadline := time.NewTimer(time.Duration(*msmtDeadline) * time.Second)
 
@@ -356,30 +336,43 @@ func manageQuicMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clo
 			sendQuicMsmtInfoRequest(addr, port, callSize, &currSrvBytes)
 			tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
 
-		// TODO: Invalidate data sent to test-sequencer or it will plot
 		case <-tDeadline.C:
-			// debug fmt.Println("\nDeadline fired")
+			fmt.Println("\nDeadline fired: Msmt failed")
 			tDeadline.Stop()
-			for i := 0; i < workers; i++ {
-				closeConnCh <- "close"
-			}
+			tMsmtInfoReq.Stop()
 
-			wg.Wait()
+			/*
+			- case a) serious exception: quic_worker handled that error already
+			- case b) socket is still ok but no further data transmitted 
+			- case a) and b) are handled here in one block
+			- peforming 
+				"
+				for i := 0; i < workers; i++ {
+					closeConnCh <- "close"
+				}
 
-			// all connections are now terminated: server should shut down aswell
+				wg.Wait()
+				"
+				
+				is not possible: quic worker handled error already and another "close" wont be recoginiezd
+				
+			*/
+
 			sendQuicMsmtStopRequest(addr, port, callSize)
 			return
 
 		default:
-			// reset timer as long a) msmtTotalBytes not reached OR b) msmt info reply changes
-			if doneSending(sentStreamBytes) == false || noUpdates(&lastSrvBytes, &currSrvBytes) == false {
-				// fmt.Println("\nReseting timeout")
-				tDeadline.Reset(time.Duration(*msmtDeadline) * time.Second)
 
+			// reset timer as long a) msmtTotalBytes not reached OR b) msmt info reply changes
+			if noUpdates(&lastSrvBytes, &currSrvBytes) == false {
+				tDeadline.Reset(time.Duration(*msmtDeadline) * time.Second)
 			}
 
 			if msmtFinished(&currSrvBytes) {
 				tDeadline.Stop()
+				tMsmtInfoReq.Stop()
+
+				fmt.Println("\nDeadline not fired: Msmt ok")
 
 				for i := 0; i < workers; i++ {
 					closeConnCh <- "close"
@@ -461,7 +454,6 @@ func sendQuicMsmtStopRequest(addr string, port int, callSize int) {
 // underlying control channel is TCP based
 func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	// bytes per stream
-	var sentStreamBytes map[string]*uint
 	var wg sync.WaitGroup
 	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("TcpThroughputMsmtStartReqConn", addr, port, callSize)
@@ -502,20 +494,12 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 
 	msmtIdStorage["tcp-throughput1"] = repDataObj.Measurement_id
 
-	sentStreamBytes = make(map[string]*uint)
-	numStreams, _ := strconv.Atoi(msmtObj.Configuration.Worker)
-	for c := 1; c <= numStreams; c++ {
-		stream := "stream" + strconv.Itoa(c)
-		streamBytes := uint(0)
-		sentStreamBytes[stream] = &streamBytes
-	}
+	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, *msmtTotalBytes)
 
-	tcpThroughput.NewTcpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, sentStreamBytes, *msmtTotalBytes)
-
-	manageTcpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker, sentStreamBytes)
+	manageTcpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
 }
 
-func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int, sentStreamBytes map[string]*uint) {
+func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int, ) {
 	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
 	tDeadline := time.NewTimer(time.Duration(*msmtDeadline) * time.Second)
 
@@ -530,7 +514,8 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 
 		// TODO: Invalidate data sent to test-sequencer or it will plot
 		case <-tDeadline.C:
-			// debug fmt.Println("\nDeadline fired")
+			fmt.Println("\nDeadline fired: Msmt failed")
+
 			tDeadline.Stop()
 			for i := 0; i < workers; i++ {
 				closeConnCh <- "close"
@@ -544,7 +529,7 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 
 		default:
 			// reset timer as long a) msmtTotalBytes not reached OR b) msmt info reply changes
-			if doneSending(sentStreamBytes) == false || noUpdates(&lastSrvBytes, &currSrvBytes) == false {
+			if noUpdates(&lastSrvBytes, &currSrvBytes) == false {
 				// fmt.Println("\nReseting timeout")
 				tDeadline.Reset(time.Duration(*msmtDeadline) * time.Second)
 
@@ -576,25 +561,6 @@ func msmtFinished(currSrvBytes *uint) bool {
 	}
 
 	return false
-}
-
-// purpose: checks if sum of all "stream bytes" (i.e. bytes sent per stream) matches the parameter msmtTotalBytes => does clt sent all bytes?
-// called by: manage(Tcp|Udp|Quic)Msmt
-func doneSending(sentStreamBytes map[string]*uint) bool {
-	var sumBytes uint
-	done := false
-
-	// iterate over streams
-	for _, val := range sentStreamBytes {
-		sumBytes += *val
-
-		if sumBytes >= *msmtTotalBytes {
-			done = true
-			// debug fmt.Println("\nEnough bytes sent: ", sumBytes)
-			break
-		}
-	}
-	return done
 }
 
 // purpose: compare results from MsmtInfoRep => does byte count change? => influence deadline timer
@@ -692,7 +658,6 @@ func sendTcpMsmtStopRequest(addr string, port int, callSize int) {
 // this starts the UDP throughput measurement
 // underlying control channel is TCP based
 func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
-	var sentStreamBytes map[string]*uint
 	var wg sync.WaitGroup
 	closeConnCh := make(chan string)
 	tcpObj := clientProtos.NewTcpObj("UdpThroughputMsmtConn", addr, port, callSize)
@@ -731,21 +696,12 @@ func sendUdpMsmtStartRequest(addr string, port int, callSize int) {
 	}
 
 	msmtIdStorage["udp-throughput1"] = repDataObj.Measurement_id
+	udpThroughput.NewUdpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, *msmtTotalBytes)
 
-	sentStreamBytes = make(map[string]*uint)
-	numStreams, _ := strconv.Atoi(msmtObj.Configuration.Worker)
-	for c := 1; c <= numStreams; c++ {
-		stream := "stream" + strconv.Itoa(c)
-		streamBytes := uint(0)
-		sentStreamBytes[stream] = &streamBytes
-	}
-
-	udpThroughput.NewUdpMsmtClient(msmtObj.Configuration, repDataObj, &wg, closeConnCh, *bufLength, sentStreamBytes, *msmtTotalBytes)
-
-	manageUdpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker, sentStreamBytes)
+	manageUdpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
 }
 
-func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int, sentStreamBytes map[string]*uint) {
+func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
 	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
 	tDeadline := time.NewTimer(time.Duration(*msmtDeadline) * time.Second)
 
@@ -774,7 +730,7 @@ func manageUdpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 
 		default:
 			// reset timer as long a) msmtTotalBytes not reached OR b) msmt info reply changes
-			if doneSending(sentStreamBytes) == false || noUpdates(&lastSrvBytes, &currSrvBytes) == false {
+			if noUpdates(&lastSrvBytes, &currSrvBytes) == false {
 				// fmt.Println("\nReseting timeout")
 				tDeadline.Reset(time.Duration(*msmtDeadline) * time.Second)
 

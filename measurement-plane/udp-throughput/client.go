@@ -8,7 +8,7 @@ import "fmt"
 import "math"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
-func NewUdpMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataObj, wg *sync.WaitGroup, closeConnCh <-chan string, callSize int, sentStreamBytes map[string]*uint, msmtTotalBytes uint) {
+func NewUdpMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataObj, wg *sync.WaitGroup, closeConnCh <-chan string, callSize int, msmtTotalBytes uint) {
 	lAddr := config.Listen_addr
 	serverPorts := shared.ConvStrToIntSlice(msmtStartRep.Measurement.Configuration.UsedPorts)
 	workers, err := strconv.ParseUint(config.Worker, 10, 32)
@@ -26,16 +26,14 @@ func NewUdpMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataO
 		fmt.Println("\ntotal bytes over all streams", StreamBytes * uint(workers))
 	*/
 
-	for i, port := range serverPorts {
+	for _, port := range serverPorts {
 		listen := lAddr + ":" + strconv.Itoa(port)
-		stream := "stream" + strconv.Itoa(i+1)
-
 		wg.Add(1)
-		go udpClientWorker(listen, wg, closeConnCh, uint(callSize), sentStreamBytes[stream], StreamBytes)
+		go udpClientWorker(listen, wg, closeConnCh, uint(callSize),StreamBytes)
 	}
 }
 
-func udpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string, callSize uint, sentStreamBytes *uint, streamBytes uint) {
+func udpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string, callSize uint, streamBytes uint) {
 	buf := make([]byte, callSize, callSize)
 
 	conn, err := net.Dial("udp", addr)
@@ -67,9 +65,6 @@ func udpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string,
 
 				// update per stream counter
 				streamBytes -= uint(bytes)
-				// update stream counter reference for mapago-client => determine when its done
-				*sentStreamBytes = *sentStreamBytes + uint(bytes)
-
 				// case b) last bytes to send are not a "full" buffer
 			} else if streamBytes < callSize && streamBytes > 0 {
 				buf = make([]byte, streamBytes, streamBytes)
@@ -82,9 +77,6 @@ func udpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string,
 
 				// update per stream counter
 				streamBytes -= uint(bytes)
-				// update stream counter reference for mapago-client => determine when its done
-				*sentStreamBytes = *sentStreamBytes + uint(bytes)
-
 				// case c): Default (streamBytes == 0 => enough sent) => Do nothing: Wait for channels
 			}
 		}
