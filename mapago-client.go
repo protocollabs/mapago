@@ -337,26 +337,8 @@ func manageQuicMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clo
 			tMsmtInfoReq.Reset(time.Duration(*msmtUpdateTime) * time.Second)
 
 		case <-tDeadline.C:
-			fmt.Println("\nDeadline fired: Msmt failed")
 			tDeadline.Stop()
 			tMsmtInfoReq.Stop()
-
-			/*
-			- case a) serious exception: quic_worker handled that error already
-			- case b) socket is still ok but no further data transmitted 
-			- case a) and b) are handled here in one block
-			- peforming 
-				"
-				for i := 0; i < workers; i++ {
-					closeConnCh <- "close"
-				}
-
-				wg.Wait()
-				"
-				
-				is not possible: quic worker handled error already and another "close" wont be recoginiezd
-				
-			*/
 
 			sendQuicMsmtStopRequest(addr, port, callSize)
 			return
@@ -371,8 +353,6 @@ func manageQuicMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clo
 			if msmtFinished(&currSrvBytes) {
 				tDeadline.Stop()
 				tMsmtInfoReq.Stop()
-
-				fmt.Println("\nDeadline not fired: Msmt ok")
 
 				for i := 0; i < workers; i++ {
 					closeConnCh <- "close"
@@ -499,7 +479,7 @@ func sendTcpMsmtStartRequest(addr string, port int, callSize int) {
 	manageTcpMsmt(addr, port, callSize, &wg, closeConnCh, numWorker)
 }
 
-func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int, ) {
+func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, closeConnCh chan<- string, workers int) {
 	tMsmtInfoReq := time.NewTimer(time.Duration(*msmtUpdateTime) * time.Second)
 	tDeadline := time.NewTimer(time.Duration(*msmtDeadline) * time.Second)
 
@@ -514,7 +494,7 @@ func manageTcpMsmt(addr string, port int, callSize int, wg *sync.WaitGroup, clos
 
 		// TODO: Invalidate data sent to test-sequencer or it will plot
 		case <-tDeadline.C:
-			fmt.Println("\nDeadline fired: Msmt failed")
+			// debug fmt.Println("\nDeadline fired: Msmt failed")
 
 			tDeadline.Stop()
 			for i := 0; i < workers; i++ {

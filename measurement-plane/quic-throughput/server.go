@@ -141,15 +141,12 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 
 		errStr := strings.TrimSpace(err.Error())
 		if errStr == "server closed" {
-			// ok handshake must have failed. the msmt stop req has already shut down all socks
 			return
 		}
 
 		fmt.Println("\nUnknown accept() error! exiting!")
 		os.Exit(1)
 	}
-
-	// debug fmt.Printf("!!!!!!!!!!!!!!!!QUIC Connection from %s!!!!!!!!!!!!!\n", sess.RemoteAddr())
 
 	connPtr.AcceptSock = sess
 
@@ -164,7 +161,6 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 	for {
 		bytes, err := quicStream.Read(message)
 		if err != nil {
-			// debug fmt.Printf("Read() err is: %s\n", err)
 
 			if err == io.EOF {
 				break
@@ -190,7 +186,6 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 			os.Exit(1)
 		}
 
-		// debug fmt.Println("\nArrived right before accounting!")
 		msmtInfoPtr.Bytes += uint64(bytes)
 
 		if fTsExists == false {

@@ -27,15 +27,15 @@ func NewQuicMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.Data
 		fmt.Println("\ntotal bytes over all streams", StreamBytes * uint(workers))
 	*/
 
-	for i, port := range serverPorts {
+	for _, port := range serverPorts {
 		listen := lAddr + ":" + strconv.Itoa(port)
 		wg.Add(1)
 		// i is for debugging
-		go quicClientWorker(listen, wg, closeConnCh, uint(callSize), StreamBytes, i)
+		go quicClientWorker(listen, wg, closeConnCh, uint(callSize), StreamBytes)
 	}
 }
 
-func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string, callSize uint, streamBytes uint, streamIndex int) {
+func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string, callSize uint, streamBytes uint) {
 	buf := make([]byte, callSize, callSize)
 
 	tlsConf := tls.Config{InsecureSkipVerify: true}
@@ -43,14 +43,11 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 	session, err := quic.DialAddr(addr, &tlsConf, nil)
 	if err != nil {
 		// Catch: handshake timeout
-		fmt.Println("\nStream: ", streamIndex)
-		fmt.Println("\nDialAddr() err is: ", err)
 		return
 	}
 
 	stream, err := session.OpenStreamSync()
 	if err != nil {
-		fmt.Println("\nStream: ", streamIndex)
 		fmt.Println("\nOpenStreamSync() err is: ", err)
 		os.Exit(1)
 	}
@@ -71,8 +68,6 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 				bytes, err := stream.Write(buf)
 
 				if err != nil {
-					fmt.Printf("\nWrite error: %s", err)
-
 					errStr := strings.TrimSpace(err.Error())
 					if errStr == "NO_ERROR" {
 						continue
@@ -83,7 +78,6 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 						errStr = strings.TrimSpace(errStr[index+1:])
 
 						if errStr == "No recent network activity" {
-							fmt.Println("\nStream: ", streamIndex)
 							// ok serious error we have to leave our "write-for-loop"
 							session.Close()
 							wg.Done()
@@ -102,9 +96,6 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 				bytes, err := stream.Write(buf)
 
 				if err != nil {
-					fmt.Printf("\nWrite error: %s", err)
-
-					// add here
 					errStr := strings.TrimSpace(err.Error())
 					if errStr == "NO_ERROR" {
 						continue
@@ -115,7 +106,6 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 						errStr = strings.TrimSpace(errStr[index+1:])
 
 						if errStr == "No recent network activity" {
-							fmt.Println("\nStream: ", streamIndex)
 							// ok serious error we have to leave our "write-for-loop"
 							session.Close()
 							wg.Done()
