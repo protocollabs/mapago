@@ -138,10 +138,19 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 	sess, err := listener.Accept()
 	if err != nil {
 		fmt.Printf("Accept() err is: %s\n", err)
+
+		errStr := strings.TrimSpace(err.Error())
+		if errStr == "server closed" {
+			// ok handshake must have failed. the msmt stop req has already shut down all socks
+			return
+		}
+
+		fmt.Println("\nUnknown accept() error! exiting!")
 		os.Exit(1)
 	}
 
-	fmt.Printf("Connection from %s\n", sess.RemoteAddr())
+	// debug fmt.Printf("!!!!!!!!!!!!!!!!QUIC Connection from %s!!!!!!!!!!!!!\n", sess.RemoteAddr())
+
 	connPtr.AcceptSock = sess
 
 	quicStream, err := sess.AcceptStream()
@@ -177,7 +186,7 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 				// no additional cases atm
 			}
 
-			fmt.Println("\nUnknown error! exiting!")
+			fmt.Println("\nUnknown read error! exiting!")
 			os.Exit(1)
 		}
 
@@ -200,10 +209,16 @@ func (quicMsmt *QuicThroughputMsmt) CloseConn() {
 	var msmtData []shared.DataResultObj
 	var combinedData shared.CombinedData
 
-	for c, quicConns := range quicMsmt.connStorage {
-		fmt.Println("\nClosing stream: ", c)
-		quicConns.AcceptSock.Close()
+	for _, quicConns := range quicMsmt.connStorage {
 		quicConns.SrvSock.Close()
+
+		if quicConns.AcceptSock != nil {
+			err := quicConns.AcceptSock.Close()
+			if err != nil {
+				fmt.Printf("Close() err is: %s\n", err)
+				os.Exit(1)
+			}
+		}
 	}
 
 	msmtReply := new(shared.ChMsmt2Ctrl)
