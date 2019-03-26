@@ -10,6 +10,8 @@ You can use pre-compiled releases compiled for Linux, Mac and Windows.
 Execute the following installation steps to use Mapago:
 
 ```
+download archive: https://golang.org/dl/
+tar -C /usr/local -xzf go$VERSION.$OS-$ARCH.tar.gz
 export GOPATH=$HOME/go
 export GOBIN=$HOME/go/bin
 export GOROOT=/usr/local/go
