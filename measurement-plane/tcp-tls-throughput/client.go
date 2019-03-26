@@ -51,7 +51,12 @@ func tcpTlsClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan stri
 
 	conn, err := tls.Dial("tcp", addr, &config)
 	if err != nil {
-		panic("dial")
+		// sloppy
+		return
+		/*
+			fmt.Printf("\nTLS Dial() error: %s", err)
+			os.Exit(1)
+		*/
 	}
 
 	// TODO: check connection state
@@ -74,8 +79,13 @@ func tcpTlsClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan stri
 				bytes, err := conn.Write(buf)
 
 				if err != nil {
-					fmt.Printf("\nWrite error: %s", err)
-					os.Exit(1)
+					// sloppy
+					return
+
+					/*
+						fmt.Printf("\nWrite error: %s", err)
+						os.Exit(1)
+					*/
 				}
 
 				// update per stream counter
@@ -87,8 +97,12 @@ func tcpTlsClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan stri
 				bytes, err := conn.Write(buf)
 
 				if err != nil {
-					fmt.Printf("\nWrite error: %s", err)
-					os.Exit(1)
+					// sloppy
+					return
+					/*
+						fmt.Printf("\nWrite error: %s", err)
+						os.Exit(1)
+					*/
 				}
 
 				// update per stream counter
