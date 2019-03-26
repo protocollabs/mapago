@@ -6,6 +6,7 @@ import "os"
 import "strconv"
 import "fmt"
 import "math"
+import "strings"
 import "github.com/protocollabs/mapago/control-plane/ctrl/shared"
 
 func NewTcpMsmtClient(config shared.ConfigurationObj, msmtStartRep *shared.DataObj, wg *sync.WaitGroup, closeConnCh <-chan string, callSize int, msmtTotalBytes uint) {
@@ -40,7 +41,14 @@ func tcpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string,
 
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
-		panic("dial")
+		errStr := strings.TrimSpace(err.Error())
+		if strings.Contains(errStr, "no route to host") {
+			// debug fmt.Println("\n tcp dial: ok no route to host")
+			return
+		}
+
+		fmt.Println("\nUnknown read error! exiting!")
+		os.Exit(1)
 	}
 
 	for {
@@ -61,8 +69,13 @@ func tcpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string,
 				bytes, err := conn.Write(buf)
 
 				if err != nil {
-					fmt.Printf("\nWrite error: %s", err)
-					os.Exit(1)
+					// sloppy just return
+					return
+
+					/*
+						fmt.Printf("\nWrite error: %s", err)
+						os.Exit(1)
+					*/
 				}
 
 				// update per stream counter
@@ -74,8 +87,13 @@ func tcpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string,
 				bytes, err := conn.Write(buf)
 
 				if err != nil {
-					fmt.Printf("\nWrite error: %s", err)
-					os.Exit(1)
+					// sloppy just return
+					return
+
+					/*
+						fmt.Printf("\nWrite error: %s", err)
+						os.Exit(1)
+					*/
 				}
 
 				// update per stream counter

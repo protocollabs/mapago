@@ -134,7 +134,13 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 
 	conn, error := listener.AcceptTCP()
 	if error != nil {
-		fmt.Printf("Cannot accept: %s\n", error)
+		fmt.Printf("Accept error is: %s\n", error)
+
+		if error.(*net.OpError).Err.Error() == "use of closed network connection" {
+			return
+		}
+
+		fmt.Println("\nUnknown accept() error! exiting!")
 		os.Exit(1)
 	}
 
@@ -177,9 +183,16 @@ func (tcpMsmt *TcpMsmtObj) CloseConn() {
 	var combinedData shared.CombinedData
 
 	for c, tcpConns := range tcpMsmt.connStorage {
-		fmt.Println("\nClosing stream: ", c)
-		tcpConns.AcceptSock.Close()
+		fmt.Println("\nclosing stream: ", c)
 		tcpConns.SrvSock.Close()
+
+		if tcpConns.AcceptSock != nil {
+			err := tcpConns.AcceptSock.Close()
+			if err != nil {
+				fmt.Printf("Close() err is: %s\n", err)
+				os.Exit(1)
+			}
+		}
 	}
 
 	msmtReply := new(shared.ChMsmt2Ctrl)
