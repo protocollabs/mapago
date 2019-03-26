@@ -152,6 +152,12 @@ func (quicMsmt *QuicThroughputMsmt) quicServerWorker(closeCh <-chan interface{},
 
 	quicStream, err := sess.AcceptStream()
 	if err != nil {
+		errStr := strings.TrimSpace(err.Error())
+
+		if strings.Contains(errStr, "Handshake did not complete in time") {
+			return
+		}
+
 		fmt.Printf("AcceptStream() err is: %s\n", err)
 		os.Exit(1)
 	}

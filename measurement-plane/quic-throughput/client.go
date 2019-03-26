@@ -42,8 +42,14 @@ func quicClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string
 
 	session, err := quic.DialAddr(addr, &tlsConf, nil)
 	if err != nil {
-		// Catch: handshake timeout
-		return
+		errStr := strings.TrimSpace(err.Error())
+
+		if strings.Contains(errStr, "Handshake did not complete in time") {
+			return
+		}
+
+		fmt.Printf("DialAddr() err is: %s\n", err)
+		os.Exit(1)
 	}
 
 	stream, err := session.OpenStreamSync()
