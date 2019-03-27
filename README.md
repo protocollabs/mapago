@@ -10,14 +10,21 @@ You can use pre-compiled releases compiled for Linux, Mac and Windows.
 Execute the following installation steps to use Mapago:
 
 ```
+download archive: https://golang.org/dl/
+tar -C ~/bin/ -xzf go$VERSION.$OS-$ARCH.tar.gz
+mkdir ~/go
 export GOPATH=$HOME/go
 export GOBIN=$HOME/go/bin
+export GOROOT=$HOME/bin/go
+export PATH=$PATH:$GOROOT/bin
+go get -u -d github.com/lucas-clemente/quic-go
 go get github.com/google/uuid
 go get github.com/protocollabs/mapago
-cd $GOPATH/github.com/protocollabs/mapago
-make install
-mapago-server
-mapago-client -ctrl-addr localhost -ctrl-protocol tcp -msmt-type tcp-throughput
+cd $GOPATH/src/github.com/protocollabs/mapago
+make
+./mapago-server -port 64321 -uc-listen-addr 127.0.0.1
+./mapago-client -control-addr 127.0.0.1 -control-protocol tcp -module quic-throughput -streams 1 -addr 127.0.0.1 -deadline 60 -bytes 140000 -buffer-length 1400
+
 ```
 
 ## Design Principles

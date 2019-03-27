@@ -83,7 +83,7 @@ func NewTcpTlsThroughputMsmt(msmtCh <-chan shared.ChMgmt2Msmt, ctrlCh chan<- sha
 		}
 	}
 
-	fmt.Println("\n\nPorts used by TCP module: ", tcpMsmt.usedPorts)
+	fmt.Println("\n\nPorts used by TCP TLS module: ", tcpMsmt.usedPorts)
 
 	msmtReply := new(shared.ChMsmt2Ctrl)
 	msmtReply.Status = "ok"
@@ -147,8 +147,13 @@ func (tcpMsmt *TcpTlsThroughputMsmt) tcpTlsServerWorker(closeCh <-chan interface
 	// AcceptTCP returns *net.TCPConn, Accept returns net.Conn
 	conn, error := listener.Accept()
 	if error != nil {
-		fmt.Printf("Cannot accept: %s\n", error)
-		os.Exit(1)
+		// sloppy just return
+		return
+
+		/*
+			fmt.Printf("Cannot accept: %s\n", error)
+			os.Exit(1)
+		*/
 	}
 
 	fmt.Printf("Connection from %s\n", conn.RemoteAddr())
@@ -193,8 +198,15 @@ func (tcpMsmt *TcpTlsThroughputMsmt) CloseConn() {
 
 	for c, tcpConns := range tcpMsmt.connStorage {
 		fmt.Println("\nClosing stream: ", c)
-		tcpConns.AcceptSock.Close()
 		tcpConns.SrvSock.Close()
+
+		if tcpConns.AcceptSock != nil {
+			err := tcpConns.AcceptSock.Close()
+			if err != nil {
+				fmt.Printf("Close() err is: %s\n", err)
+				os.Exit(1)
+			}
+		}
 	}
 
 	msmtReply := new(shared.ChMsmt2Ctrl)
