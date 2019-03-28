@@ -38,8 +38,13 @@ func tcpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string,
 	buf := make([]byte, callSize, callSize)
 
 	// debug fmt.Println("\nbyte ctr is:", *streamByteCtr)
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		fmt.Printf("Cannot resolve address: %s\n", addr)
+		return
+	}
 
-	conn, err := net.Dial("tcp", addr)
+	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
 		errStr := strings.TrimSpace(err.Error())
 		if strings.Contains(errStr, "no route to host") {
@@ -50,6 +55,8 @@ func tcpClientWorker(addr string, wg *sync.WaitGroup, closeConnCh <-chan string,
 		fmt.Println("\nUnknown read error! exiting!")
 		os.Exit(1)
 	}
+	conn.SetWriteBuffer(20000000);
+	conn.SetReadBuffer(20000000);
 
 	for {
 		select {

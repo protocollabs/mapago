@@ -143,6 +143,8 @@ func (tcpMsmt *TcpMsmtObj) tcpServerWorker(closeCh <-chan interface{}, goHeartbe
 		fmt.Println("\nUnknown accept() error! exiting!")
 		os.Exit(1)
 	}
+	conn.SetWriteBuffer(20000000);
+	conn.SetReadBuffer(20000000);
 
 	fmt.Printf("Connection from %s\n", conn.RemoteAddr())
 	connPtr.AcceptSock = conn
