@@ -19,6 +19,12 @@ all: $(TARGET)
 $(TARGET): $(SRC)
 	go build -ldflags $(LDFLAGS) mapago-server.go
 	go build -ldflags $(LDFLAGS) mapago-client.go
+	$(eval OS := windows)
+	$(eval PLATFORM := amd64)
+	$(eval ARCH=release/$(OS)-$(PLATFORM))
+	GOOS=$(OS) GOARCH=$(PLATFORM) go build -ldflags $(LDFLAGS) -o mapago-server.exe mapago-server.go
+	GOOS=$(OS) GOARCH=$(PLATFORM) go build -ldflags $(LDFLAGS) -o mapago-client.exe mapago-client.go
+
 
 XYZs = windows:amd64 linux:arm64
 
